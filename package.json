@@ -1,0 +1,42 @@
+{
+  "name": "kafka-consumer-manager",
+  "version": "0.9.9",
+  "description": "Kafka consumer manager handles retries, offset issues and retries",
+  "main": "./index.js",
+  "scripts": {
+    "test": "./node_modules/.bin/istanbul cover node_modules/.bin/_mocha ./test/*"
+  },
+  "author": "Eli Nudler",
+  "license": "MIT",
+  "homepage": "https://github.com/enudler/kafka-consumer-manager",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/enudler/kafka-consumer-manager"
+  },
+  "keywords": [
+    "kafka",
+    "consumer",
+    "manager",
+    "retries",
+    "offset"
+  ],
+  "dependencies": {
+    "bunyan": "1.8.12",
+    "istanbul": "1.0.0-alpha.2",
+    "kafka-node": "2.3.0",
+    "lodash": "4.17.4"
+  },
+  "devDependencies": {
+    "mochawesome": "2.3.1",
+    "mocha": "4.0.1",
+    "rewire": "3.0.2",
+    "should": "13.1.3",
+    "sinon": "4.1.3",
+    "eslint": "4.13.1",
+    "eslint-config-standard": "11.0.0-beta.0",
+    "eslint-plugin-import": "2.8.0",
+    "eslint-plugin-node": "5.2.1",
+    "eslint-plugin-promise": "3.6.0",
+    "eslint-plugin-standard": "3.0.1"
+  }
+}
