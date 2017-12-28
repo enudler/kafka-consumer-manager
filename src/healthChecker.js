@@ -7,7 +7,7 @@ let intervalId;
 function init(config) {
     configuration = config;
     intervalId = setInterval(() => {
-        let isHealthy = configuration.RESUME_PAUSE_CHECK_FUNCTION();
+        let isHealthy = configuration.ResumePauseCheckFunction();
 
         if (isHealthy) {
             logger.info('ran health check and got health OK, will resume consumer if it was stopped');
@@ -16,7 +16,9 @@ function init(config) {
             logger.info('ran health check and got health DOWN, will pause consumer if it was running');
             consumer.pause();
         }
-    }, configuration.RESUME_PAUSE_INTERVAL_MS);
+    }, configuration.ResumePauseIntervalMs);
+
+    return Promise.resolve();
 }
 
 function stop() {

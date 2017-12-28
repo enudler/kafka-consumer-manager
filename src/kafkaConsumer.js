@@ -13,17 +13,17 @@ function init(config) {
 
     successPromise = new Promise((resolve, reject) => {
         let options = {
-            kafkaHost: configuration.KAFKA_URL,
+            kafkaHost: configuration.KafkaUrl,
             autoCommit: true,
-            groupId: configuration.GROUP_ID,
+            groupId: configuration.GroupId,
             sessionTimeout: 10000,
             protocol: ['roundrobin'],
             encoding: 'utf8'
         };
 
-        consumer = new kafka.ConsumerGroup(options, configuration.TOPICS);
+        consumer = new kafka.ConsumerGroup(options, configuration.Topics);
         offset = new kafka.Offset(consumer.client);
-        consumer.on('message', configuration.MESSAGE_FUNCTION);
+        consumer.on('message', configuration.MessageFunction);
 
         consumer.on('error', function (err) {
             logger.error(err, 'Kafka Error');
@@ -47,8 +47,8 @@ function init(config) {
 
     timeOutPromise = new Promise((resolve, reject) => {
         setTimeout(() => {
-            reject(new Error(`Failed to connect to kafka after ${configuration.KAFKA_CONNECTION_TIMEOUT} ms.`));
-        }, configuration.KAFKA_CONNECTION_TIMEOUT);
+            reject(new Error(`Failed to connect to kafka after ${configuration.KafkaConnectionTimeout} ms.`));
+        }, configuration.KafkaConnectionTimeout);
     });
 
     return Promise.race([
@@ -112,7 +112,7 @@ function isOffsetsInSync(data) {
         if (data && data[topic] && data[topic][partition]) {
             let zkLatestOffset = data[topic][partition][0];
             let unhandledMessages = zkLatestOffset - offset;
-            if (unhandledMessages >= configuration.KAFKA_OFFSET_DIFF_THRESHOLD) {
+            if (unhandledMessages >= configuration.KafkaOffsetDiffThreshold) {
                 let state = {
                     topic: topic,
                     partition: partition,

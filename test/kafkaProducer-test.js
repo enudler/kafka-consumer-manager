@@ -49,8 +49,8 @@ describe('Testing kafka consumer component', () =>{
                 producer = rewire('../src/kafkaProducer');
 
                 configuration = {
-                    ZOOKEEPER_URL: 'zookeeper_url',
-                    KAFKA_CONNECTION_TIMEOUT: 1000
+                    ZookeeperUrl: 'ZookeeperUrl',
+                    KafkaConnectionTimeout: 1000
                 };
 
                 setTimeout(() => { producerEventHandlers.ready('connect test') }, 100);
@@ -66,8 +66,8 @@ describe('Testing kafka consumer component', () =>{
                 producer = rewire('../src/kafkaProducer');
 
                 configuration = {
-                    ZOOKEEPER_URL: 'zookeeper_url',
-                    KAFKA_CONNECTION_TIMEOUT: 100
+                    ZookeeperUrl: 'ZookeeperUrl',
+                    KafkaConnectionTimeout: 100
                 };
 
                 return producer.init(configuration)
@@ -85,8 +85,8 @@ describe('Testing kafka consumer component', () =>{
             producer = rewire('../src/kafkaProducer');
 
             configuration = {
-                ZOOKEEPER_URL: 'zookeeper_url',
-                KAFKA_CONNECTION_TIMEOUT: 1000
+                ZookeeperUrl: 'ZookeeperUrl',
+                KafkaConnectionTimeout: 1000
             };
 
             producer.init(configuration);

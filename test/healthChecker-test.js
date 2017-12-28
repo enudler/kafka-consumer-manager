@@ -29,10 +29,10 @@ describe('Testing health checker', function () {
 
     it('Testing health checker is up - one time check', (done) => {
         let configuration = {
-            RESUME_PAUSE_CHECK_FUNCTION: () => {
+            ResumePauseCheckFunction: () => {
                 return true;
             },
-            RESUME_PAUSE_INTERVAL_MS: 50
+            ResumePauseIntervalMs: 50
         };
 
         healthChecker.init(configuration);
@@ -45,10 +45,10 @@ describe('Testing health checker', function () {
 
     it('Testing health checker is up - three time check', (done) => {
         let configuration = {
-            RESUME_PAUSE_CHECK_FUNCTION: () => {
+            ResumePauseCheckFunction: () => {
                 return true;
             },
-            RESUME_PAUSE_INTERVAL_MS: 50
+            ResumePauseIntervalMs: 50
         };
 
         healthChecker.init(configuration);
@@ -61,10 +61,10 @@ describe('Testing health checker', function () {
 
     it('Testing health checker is down - one time check', (done) => {
         let configuration = {
-            RESUME_PAUSE_CHECK_FUNCTION: () => {
+            ResumePauseCheckFunction: () => {
                 return false;
             },
-            RESUME_PAUSE_INTERVAL_MS: 50
+            ResumePauseIntervalMs: 50
         };
 
         healthChecker.init(configuration);
@@ -77,10 +77,10 @@ describe('Testing health checker', function () {
 
     it('Testing health checker is down - three time check', (done) => {
         let configuration = {
-            RESUME_PAUSE_CHECK_FUNCTION: () => {
+            ResumePauseCheckFunction: () => {
                 return false;
             },
-            RESUME_PAUSE_INTERVAL_MS: 50
+            ResumePauseIntervalMs: 50
         };
 
         healthChecker.init(configuration);
@@ -94,10 +94,10 @@ describe('Testing health checker', function () {
     it('Testing health checker is UP DOWN UP DOWN', (done) => {
         let index = 0;
         let configuration = {
-            RESUME_PAUSE_CHECK_FUNCTION: () => {
+            ResumePauseCheckFunction: () => {
                 return index++ % 2 === 0;
             },
-            RESUME_PAUSE_INTERVAL_MS: 50
+            ResumePauseIntervalMs: 50
         };
 
         healthChecker.init(configuration);

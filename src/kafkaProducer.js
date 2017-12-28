@@ -7,7 +7,7 @@ let writeBackDelay = 100,
 
 function init(config) {
     configuration = config;
-    client = new kafka.Client(configuration.ZOOKEEPER_URL);
+    client = new kafka.Client(configuration.ZookeeperUrl);
     producer = new kafka.HighLevelProducer(client, {
         requireAcks: 1,
         encoding: 'utf8'
@@ -22,8 +22,8 @@ function init(config) {
 
     timeOutPromise = new Promise((resolve, reject) => {
         setTimeout(() => {
-            reject(new Error('Failed to connect to kafka after ' + configuration.KAFKA_CONNECTION_TIMEOUT + ' ms.'));
-        }, configuration.KAFKA_CONNECTION_TIMEOUT);
+            reject(new Error('Failed to connect to kafka after ' + configuration.KafkaConnectionTimeout + ' ms.'));
+        }, configuration.KafkaConnectionTimeout);
     });
 
     return Promise.race([

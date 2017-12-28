@@ -59,12 +59,12 @@ describe('Testing kafka consumer component', function () {
         actionSpy = sinon.spy();
 
         let configuration = {
-            KAFKA_URL: 'kafka_url',
-            GROUP_ID: 'group_id',
-            KAFKA_CONNECTION_TIMEOUT: 'kafka_connection_timeout',
-            TOPICS: ['topic-a', 'topic-b'],
-            KAFKA_OFFSET_DIFF_THRESHOLD: 3,
-            MESSAGE_FUNCTION: actionSpy
+            KafkaUrl: 'KafkaUrl',
+            GroupId: 'GroupId',
+            KafkaConnectionTimeout: 'KafkaConnectionTimeout',
+            Topics: ['topic-a', 'topic-b'],
+            KafkaOffsetDiffThreshold: 3,
+            MessageFunction: actionSpy
         };
 
         consumer.init(configuration);
@@ -84,12 +84,12 @@ describe('Testing kafka consumer component', function () {
             let optionsExpected = {
                 'autoCommit': true,
                 'encoding': 'utf8',
-                'groupId': 'group_id',
+                'groupId': 'GroupId',
                 'protocol': [
                     'roundrobin'
                 ],
                 'sessionTimeout': 10000,
-                'kafkaHost': 'kafka_url'
+                'kafkaHost': 'KafkaUrl'
             };
 
             should(consumerGroupStub.args[0][1]).eql(['topic-a', 'topic-b']);
