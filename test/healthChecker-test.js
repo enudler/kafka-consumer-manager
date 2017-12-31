@@ -30,7 +30,7 @@ describe('Testing health checker', function () {
     it('Testing health checker is up - one time check', (done) => {
         let configuration = {
             ResumePauseCheckFunction: () => {
-                return true;
+                return Promise.resolve(true);
             },
             ResumePauseIntervalMs: 50
         };
@@ -46,7 +46,7 @@ describe('Testing health checker', function () {
     it('Testing health checker is up - three time check', (done) => {
         let configuration = {
             ResumePauseCheckFunction: () => {
-                return true;
+                return Promise.resolve(true);
             },
             ResumePauseIntervalMs: 50
         };
@@ -62,7 +62,7 @@ describe('Testing health checker', function () {
     it('Testing health checker is down - one time check', (done) => {
         let configuration = {
             ResumePauseCheckFunction: () => {
-                return false;
+                return Promise.resolve(false);
             },
             ResumePauseIntervalMs: 50
         };
@@ -78,7 +78,7 @@ describe('Testing health checker', function () {
     it('Testing health checker is down - three time check', (done) => {
         let configuration = {
             ResumePauseCheckFunction: () => {
-                return false;
+                return Promise.resolve(false);
             },
             ResumePauseIntervalMs: 50
         };
@@ -95,7 +95,7 @@ describe('Testing health checker', function () {
         let index = 0;
         let configuration = {
             ResumePauseCheckFunction: () => {
-                return index++ % 2 === 0;
+                return Promise.resolve(index++ % 2 === 0);
             },
             ResumePauseIntervalMs: 50
         };
