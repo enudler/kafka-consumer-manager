@@ -28,7 +28,6 @@ let configuration = {
         KafkaUrl: "localhost:9092",
         GroupId: "some-group-id",
         KafkaConnectionTimeout: 10000,
-        ZookeeperUrl: "localhost:2181",
         KafkaOffsetDiffThreshold: 3,
         Topics: ["TOPIC-A", "TOPIC-B"],
         ResumePauseIntervalMs: 30000,
@@ -49,7 +48,6 @@ kafkaConsumerManager.init(configuration)
 * `KafkaUrl` &ndash; URL of Kafka.
 * `GroupId` &ndash; Defines the Consumer Group this process is consuming on behalf of.
 * `KafkaConnectionTimeout` &ndash; Max wait time wait kafka to connect.
-* `ZookeeperUrl` &ndash; Zookeeper URL.
 * `KafkaOffsetDiffThreshold` &ndash; Tolerance for how far the partition offset of the consumer can be from the real offset, this value is used by the health check to reject in case the offset is out of sync.
 * `Topics` &ndash; Array of topics that should be consumed.
 * `ResumePauseIntervalMs` &ndash; Interval of when to run the ResumePauseCheckFunction.
@@ -80,7 +78,7 @@ Pause the consuming of new messages.
 
 Resume the consuming of new messages.
 
-### kafka-consumer-manager.retryMessage(message, topic)
+### kafka-consumer-manager.send(message, topic)
 
 Send a message back to a topic.
 

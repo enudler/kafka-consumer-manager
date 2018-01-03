@@ -13,7 +13,6 @@ describe('Verify mandatory params', () => {
         KafkaUrl: 'url',
         GroupId: 'GroupId',
         KafkaConnectionTimeout: '1000',
-        ZookeeperUrl: 'ZookeeperUrl',
         KafkaOffsetDiffThreshold: '3',
         Topics: ['topic-a', 'topic-b'],
         ResumePauseIntervalMs: 100
@@ -56,7 +55,7 @@ describe('Verify mandatory params', () => {
             });
             throw new Error('Should fail');
         } catch (err) {
-            err.message.should.eql('Missing mandatory environment variables: KafkaUrl,GroupId,ZookeeperUrl,KafkaOffsetDiffThreshold,KafkaConnectionTimeout,Topics,ResumePauseIntervalMs');
+            err.message.should.eql('Missing mandatory environment variables: KafkaUrl,GroupId,KafkaOffsetDiffThreshold,KafkaConnectionTimeout,Topics,ResumePauseIntervalMs');
         }
     });
 

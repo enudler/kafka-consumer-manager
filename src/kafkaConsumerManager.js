@@ -7,7 +7,6 @@ let _ = require('lodash');
 const MANDATORY_VARS = [
     'KafkaUrl',
     'GroupId',
-    'ZookeeperUrl',
     'KafkaOffsetDiffThreshold',
     'KafkaConnectionTimeout',
     'Topics',
@@ -47,5 +46,5 @@ module.exports = {
     pause: consumer.pause,
     resume: consumer.resume,
     closeConnection: consumer.closeConnection,
-    retryMessage: producer.retryMessage
+    send: producer.send
 };

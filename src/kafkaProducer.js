@@ -3,15 +3,13 @@ let writeBackDelay = 100,
     kafka = require('kafka-node'),
     _ = require('lodash'),
     logger = require('./logger'),
-    configuration, client, producer, timeOutPromise, successPromise;
+    HighLevelProducer = kafka.HighLevelProducer,
+    configuration, producer, client, timeOutPromise, successPromise;
 
 function init(config) {
     configuration = config;
-    client = new kafka.Client(configuration.ZookeeperUrl);
-    producer = new kafka.HighLevelProducer(client, {
-        requireAcks: 1,
-        encoding: 'utf8'
-    });
+    client = new kafka.KafkaClient({kafkaHost: configuration.KafkaUrl});
+    producer = new HighLevelProducer(client, {requireAcks: 1});
 
     successPromise = new Promise((resolve) => {
         producer.on('ready', function () {
@@ -32,19 +30,19 @@ function init(config) {
     ]);
 }
 
-function retryMessage(failedMessage, topic) {
+function send(message, topic) {
     setTimeout(function () {
-        logger.info(`Producing retried message, to topic ${topic}`);
+        logger.trace(`Producing message, to topic ${topic}`);
 
         let payloads = [{
             topic: topic,
-            messages: [failedMessage]
+            messages: [message]
         }];
 
         logger.trace('Writing message back to Kafka', payloads);
         producer.send(payloads, function (error, res) {
             if (error) {
-                logger.error('Failed to write message to Kafka: ' + failedMessage, error);
+                logger.error('Failed to write message to Kafka: ' + message, error);
             } else {
                 logger.trace('message written back to Kafka ' + JSON.stringify(res));
             }
@@ -54,5 +52,5 @@ function retryMessage(failedMessage, topic) {
 
 module.exports = {
     init: init,
-    retryMessage: retryMessage
+    send: send
 };

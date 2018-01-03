@@ -13,7 +13,7 @@ let sandbox,
     producer, logInfoStub, producerSendStub,
     sendStub, onStub, producerEventHandlers;
 
-describe('Testing kafka consumer component', () =>{
+describe('Testing kafka producer component', () =>{
     before(() => {
         sandbox = sinon.sandbox.create();
         logErrorStub = sandbox.stub(logger, 'error');
@@ -33,7 +33,7 @@ describe('Testing kafka consumer component', () =>{
 
         clientStub = {'client': 'object'};
 
-        sandbox.stub(kafka, 'Client').returns(clientStub);
+        sandbox.stub(kafka, 'KafkaClient').returns(clientStub);
         HighLevelProducerStub = sandbox.stub(kafka, 'HighLevelProducer').returns(producerStub);
     });
     after(() => {
@@ -49,7 +49,7 @@ describe('Testing kafka consumer component', () =>{
                 producer = rewire('../src/kafkaProducer');
 
                 configuration = {
-                    ZookeeperUrl: 'ZookeeperUrl',
+                    KafkaUrl: 'kafka',
                     KafkaConnectionTimeout: 1000
                 };
 
@@ -66,7 +66,7 @@ describe('Testing kafka consumer component', () =>{
                 producer = rewire('../src/kafkaProducer');
 
                 configuration = {
-                    ZookeeperUrl: 'ZookeeperUrl',
+                    KafkaUrl: 'kafka',
                     KafkaConnectionTimeout: 100
                 };
 
@@ -80,12 +80,12 @@ describe('Testing kafka consumer component', () =>{
             });
         });
     });
-    describe('Testing retryMessage method', function () {
+    describe('Testing send method', function () {
         beforeEach(function () {
             producer = rewire('../src/kafkaProducer');
 
             configuration = {
-                ZookeeperUrl: 'ZookeeperUrl',
+                KafkaUrl: 'kafka',
                 KafkaConnectionTimeout: 1000
             };
 
@@ -96,13 +96,13 @@ describe('Testing kafka consumer component', () =>{
                 sandbox.resetHistory();
             });
 
-            it('Should call producer.send function on retryMessage call', function (done) {
+            it('Should call producer.send function on send call', function (done) {
                 sendStub.returns();
 
-                producer.retryMessage('{}', 'some_topic');
+                producer.send('{}', 'some_topic');
 
                 setTimeout(function () {
-                    should(logInfoStub.args[0]).eql(['Producing retried message, to topic some_topic']);
+                    should(logTraceStub.args[0]).eql(['Producing message, to topic some_topic']);
                     var expectedResult = [{
                         topic: 'some_topic',
                         messages: ['{}']
@@ -120,13 +120,13 @@ describe('Testing kafka consumer component', () =>{
                 sandbox.resetHistory();
             });
 
-            it('Should call producer.send function on retryMessage call', function (done) {
+            it('Should call producer.send function on send call', function (done) {
                 sendStub.rejects();
 
-                producer.retryMessage(JSON.stringify({key: 'value'}), 'some_topic');
+                producer.send(JSON.stringify({key: 'value'}), 'some_topic');
 
                 setTimeout(function () {
-                    should(logInfoStub.args[0]).eql(['Producing retried message, to topic some_topic']);
+                    should(logTraceStub.args[0]).eql(['Producing message, to topic some_topic']);
                     let error = new Error('error');
                     producerSendStub.args[0][1](error);
                     should(logErrorStub.args[0][0]).eql('Failed to write message to Kafka: {"key":"value"}');
