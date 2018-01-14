@@ -1,5 +1,6 @@
 let kafka = require('kafka-node'),
     logger = require('./logger'),
+    previousConsumerReadOffset,
     _ = require('lodash');
 
 let configuration, consumer, offset, errorsToHealthCheck, shuttingDown, ready,
@@ -38,6 +39,7 @@ function init(config) {
             logger.info('topicPayloads', consumer.topicPayloads);
             // Consumer is ready when "connect" event is fired + consumer has topicPayload metadata
             if (!alreadyConnected && consumer.topicPayloads.length !== 0) {
+                previousConsumerReadOffset = _.cloneDeep(consumer.topicPayloads);
                 alreadyConnected = true;
                 ready = true;
                 resolve();
@@ -67,17 +69,32 @@ function healthCheck() {
         if (!consumerEnabled) {
             logger.info('Monitor Offset: Skipping check as the consumer is paused');
             return resolve();
+        } else if (!previousConsumerReadOffset) {
+            logger.info('Monitor Offset: Skipping check as the consumer is not ready');
+            return resolve();
+        }
+
+        let notIncrementedTopicPayloads = getNotIncrementedTopicPayloads();
+
+        if (notIncrementedTopicPayloads.length === 0) {
+            logger.trace('Monitor Offset: Skipping check as offsets change was detected in the consumer', {
+                previous: previousConsumerReadOffset,
+                current: consumer.topicPayloads
+            });
+            previousConsumerReadOffset = _.cloneDeep(consumer.topicPayloads);
+            return resolve();
         } else {
-            let offsetsPayload = buildOffsetRequestPayloads();
-            logger.trace('Monitor Offset: No progress detected in offsets since the last check. Checking that the consumer is in sync..');
+            let offsetsPayload = buildOffsetRequestPayloads(notIncrementedTopicPayloads);
+            logger.trace('Monitor Offset: No progress detected in offsets in all partitions since the last check. Checking that the consumer is in sync..');
             if (consumer.topicPayloads.length > 0) {
-                offset.fetch(offsetsPayload, function (err, data) {
+                offset.fetch(offsetsPayload, function (err, zookeeperOffsets) {
                     if (err) {
                         logger.error(err, 'Monitor Offset: Failed to fetch offsets');
                         return reject(new Error('Monitor Offset: Failed to fetch offsets:' + err.message));
                     }
-                    if (isOffsetsInSync(data)) {
+                    if (isOffsetsInSync(notIncrementedTopicPayloads, zookeeperOffsets)) {
                         logger.trace('Monitor Offset: Consumer found to be in sync', consumer.topicPayloads);
+                        previousConsumerReadOffset = _.cloneDeep(consumer.topicPayloads);
                         return resolve();
                     } else {
                         return reject(errorsToHealthCheck);
@@ -90,29 +107,41 @@ function healthCheck() {
     });
 }
 
-function buildOffsetRequestPayloads() {
-    return _.map(consumer.topicPayloads, function (topicPayload) {
+function buildOffsetRequestPayloads(topicPayloads) {
+    let offsetRequestPayloads = topicPayloads.map(function (topicPayload) {
         return {
             topic: topicPayload.topic,
             partition: topicPayload.partition,
             time: -1
         };
     });
+
+    return offsetRequestPayloads;
+}
+
+// Compares the current consumer offsets vs the its previous state
+// Returns topic payload that wasn't incremented from last check
+function getNotIncrementedTopicPayloads() {
+    let notIncrementedTopicPayloads = consumer.topicPayloads.filter((topicPayload) => {
+        let {topic, partition, offset: currentOffset} = topicPayload;
+        let previousTopicPayloadForPartition = _.find(previousConsumerReadOffset, {topic, partition});
+        return previousTopicPayloadForPartition && currentOffset === previousTopicPayloadForPartition.offset;
+    });
+
+    return notIncrementedTopicPayloads;
 }
 
 // Compares the consumer offsets vs ZooKeeper's offset
 // Will return false if founds a diff
-function isOffsetsInSync(data) {
-    logger.trace('Monitor Offset: Topics offsets', data);
-    let isOffsetsInSync = _.every(consumer.topicPayloads, function (topicPayload) {
-        let topic = topicPayload.topic;
-        let partition = topicPayload.partition;
-        let offset = topicPayload.offset;
+function isOffsetsInSync(notIncrementedTopicPayloads, zookeeperOffsets) {
+    logger.trace('Monitor Offset: Topics offsets', zookeeperOffsets);
+    let isSynced = notIncrementedTopicPayloads.every(function (topicPayload) {
+        let {topic, partition, offset} = topicPayload;
 
-        if (data && data[topic] && data[topic][partition]) {
-            let zkLatestOffset = data[topic][partition][0];
+        if (zookeeperOffsets && zookeeperOffsets[topic] && zookeeperOffsets[topic][partition]) {
+            let zkLatestOffset = zookeeperOffsets[topic][partition][0];
             let unhandledMessages = zkLatestOffset - offset;
-            if (unhandledMessages >= configuration.KafkaOffsetDiffThreshold) {
+            if (unhandledMessages > configuration.KafkaOffsetDiffThreshold) {
                 let state = {
                     topic: topic,
                     partition: partition,
@@ -132,7 +161,8 @@ function isOffsetsInSync(data) {
         }
         return true;
     });
-    return isOffsetsInSync;
+
+    return isSynced;
 }
 
 function closeConnection() {

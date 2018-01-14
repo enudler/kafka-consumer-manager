@@ -1,6 +1,6 @@
 {
   "name": "kafka-consumer-manager",
-  "version": "1.0.3",
+  "version": "1.0.5",
   "description": "Kafka consumer manager handles retries, offset issues and retries",
   "main": "./index.js",
   "scripts": {
