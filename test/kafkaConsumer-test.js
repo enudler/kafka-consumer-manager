@@ -49,11 +49,10 @@ describe('Testing kafka consumer component', function () {
         consumer = rewire('../src/kafkaConsumer');
 
         actionSpy = sinon.spy();
-
         let configuration = {
             KafkaUrl: 'KafkaUrl',
             GroupId: 'GroupId',
-            KafkaConnectionTimeout: 'KafkaConnectionTimeout',
+            KafkaConnectionTimeout: 1000,
             Topics: ['topic-a', 'topic-b'],
             KafkaOffsetDiffThreshold: 3,
             MessageFunction: actionSpy

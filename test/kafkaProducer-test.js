@@ -83,7 +83,7 @@ describe('Testing kafka producer component', () =>{
     describe('Testing send method', function () {
         beforeEach(function () {
             producer = rewire('../src/kafkaProducer');
-
+            setTimeout(() => { producerEventHandlers.ready('connect test') }, 100);
             configuration = {
                 KafkaUrl: 'kafka',
                 KafkaConnectionTimeout: 1000
