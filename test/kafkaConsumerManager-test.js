@@ -1,6 +1,7 @@
 'use strict';
 
-let sinon = require('sinon');
+let sinon = require('sinon'),
+    should = require('should');
 
 describe('Verify mandatory params', () => {
     let sandbox;
@@ -14,9 +15,7 @@ describe('Verify mandatory params', () => {
         GroupId: 'GroupId',
         KafkaConnectionTimeout: '1000',
         KafkaOffsetDiffThreshold: '3',
-        Topics: ['topic-a', 'topic-b'],
-        ResumePauseIntervalMs: 100
-
+        Topics: ['topic-a', 'topic-b']
     };
 
     beforeEach(() => {
@@ -55,7 +54,7 @@ describe('Verify mandatory params', () => {
             });
             throw new Error('Should fail');
         } catch (err) {
-            err.message.should.eql('Missing mandatory environment variables: KafkaUrl,GroupId,KafkaOffsetDiffThreshold,KafkaConnectionTimeout,Topics,ResumePauseIntervalMs');
+            err.message.should.eql('Missing mandatory environment variables: KafkaUrl,GroupId,KafkaOffsetDiffThreshold,KafkaConnectionTimeout,Topics');
         }
     });
 

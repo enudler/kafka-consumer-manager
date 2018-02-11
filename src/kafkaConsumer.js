@@ -6,6 +6,8 @@ let kafka = require('kafka-node'),
 let configuration, consumer, offset, errorsToHealthCheck, shuttingDown, ready,
     consumerEnabled, successPromise, timeOutPromise, alreadyConnected;
 
+let messagesInMemory = 0;
+
 function init(config) {
     configuration = config;
     alreadyConnected = false;
@@ -19,12 +21,16 @@ function init(config) {
             groupId: configuration.GroupId,
             sessionTimeout: 10000,
             protocol: ['roundrobin'],
-            encoding: 'utf8'
+            encoding: 'utf8',
+            fetchMaxBytes: configuration.FetchMaxBytes || 1024 * 1024
         };
 
         consumer = new kafka.ConsumerGroup(options, configuration.Topics);
         offset = new kafka.Offset(consumer.client);
-        consumer.on('message', configuration.MessageFunction);
+        consumer.on('message', (message) => {
+            increaseMessageInMemory();
+            configuration.MessageFunction(message);
+        });
 
         consumer.on('error', function (err) {
             logger.error(err, 'Kafka Error');
@@ -191,10 +197,34 @@ function resume() {
     }
 }
 
+function increaseMessageInMemory() {
+    if (!configuration.MaxMessagesInMemory || !configuration.ResumeMaxMessagesRatio) {
+        return;
+    }
+    messagesInMemory++;
+    if (consumerEnabled && messagesInMemory >= configuration.MaxMessagesInMemory) {
+        logger.info(`Reached ${messagesInMemory} messages (max is ${configuration.MaxMessagesInMemory}), pausing kafka consumers`);
+        pause();
+    }
+}
+
+function decreaseMessageInMemory() {
+    if (!configuration.MaxMessagesInMemory || !configuration.ResumeMaxMessagesRatio) {
+        logger.warn('MaxMessagesInMemory and ResumeMaxMessagesRatio must have value to enable this feature');
+        return;
+    }
+    messagesInMemory--;
+    if (!consumerEnabled && messagesInMemory < configuration.MaxMessagesInMemory * configuration.ResumeMaxMessagesRatio) {
+        logger.info(`Reached below ${configuration.ResumeMaxMessagesRatio}% of ${configuration.MaxMessagesInMemory} concurrent messages, resuming kafka`);
+        resume();
+    }
+}
+
 module.exports = {
     init: init,
     healthCheck: healthCheck,
     pause: pause,
     resume: resume,
-    closeConnection: closeConnection
+    closeConnection: closeConnection,
+    decreaseMessageInMemory: decreaseMessageInMemory
 };

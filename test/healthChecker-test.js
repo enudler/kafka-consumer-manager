@@ -27,6 +27,18 @@ describe('Testing health checker', function () {
         healthChecker.stop();
     });
 
+    it('Testing health checker is not configured - health checker disabled', (done) => {
+        let configuration = {
+        };
+
+        healthChecker.init(configuration);
+
+        setTimeout(() => {
+            should(consumerResumeStub.called).eql(false);
+            done();
+        }, 100);
+    });
+
     it('Testing health checker is up - one time check', (done) => {
         let configuration = {
             ResumePauseCheckFunction: () => {

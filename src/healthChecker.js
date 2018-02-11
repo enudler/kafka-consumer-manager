@@ -5,6 +5,10 @@ let configuration;
 let intervalId;
 
 function init(config) {
+    if (!config.ResumePauseIntervalMs || !config.ResumePauseCheckFunction) {
+        logger.info('No ResumePauseIntervalMs or ResumePauseCheckFunction set, functionality disabled');
+        return;
+    }
     configuration = config;
     intervalId = setInterval(() => {
         configuration.ResumePauseCheckFunction()

@@ -55,7 +55,9 @@ describe('Testing kafka consumer component', function () {
             KafkaConnectionTimeout: 1000,
             Topics: ['topic-a', 'topic-b'],
             KafkaOffsetDiffThreshold: 3,
-            MessageFunction: actionSpy
+            MessageFunction: actionSpy,
+            MaxMessagesInMemory: 100,
+            ResumeMaxMessagesRatio: 0.25
         };
 
         consumer.init(configuration);
@@ -80,7 +82,9 @@ describe('Testing kafka consumer component', function () {
                     'roundrobin'
                 ],
                 'sessionTimeout': 10000,
-                'kafkaHost': 'KafkaUrl'
+                'kafkaHost': 'KafkaUrl',
+                'fetchMaxBytes': 1048576
+
             };
 
             should(consumerGroupStub.args[0][1]).eql(['topic-a', 'topic-b']);
@@ -423,5 +427,50 @@ describe('Testing kafka consumer component', function () {
                 });
         });
     });
-})
-;
+
+    describe('Testing Max messages in memory', function () {
+        before(function () {
+            sandbox.reset();
+            consumer.__set__('ready', true);
+            consumer.__set__('messagesInMemory', 0);
+            consumer.__set__('consumerEnabled', true);
+            consumer.__set__('shuttingDown', false);
+        });
+
+        beforeEach(function () {
+            consumer.__set__('messagesInMemory', 0);
+            consumer.__set__('consumerEnabled', true);
+        });
+
+        afterEach(function () {
+            sandbox.reset();
+        });
+
+        it('Should pause when getting to max message (100)', function () {
+            for (let i = 1; i <= 100; i++) {
+                consumerEventHandlers.message({});
+                consumer.__get__('consumerEnabled').should.be.eql(i !== 100);
+            }
+
+            logInfoStub.args[0][0].should.eql('Reached 100 messages (max is 100), pausing kafka consumers');
+
+            for (let i = 0; i < 100; i++) {
+                consumerEventHandlers.message({});
+                consumer.__get__('consumerEnabled').should.be.eql(false);
+            }
+        });
+
+        it('Should resume consuming when messages in memory is 25 (by configuration)', function () {
+            for (let i = 1; i <= 200; i++) {
+                consumerEventHandlers.message({});
+            }
+
+            logInfoStub.args[0][0].should.eql('Reached 100 messages (max is 100), pausing kafka consumers');
+
+            for (let i = 175; i >= 0; i--) {
+                consumer.decreaseMessageInMemory();
+                consumer.__get__('consumerEnabled').should.be.eql(i === 0);
+            }
+        });
+    });
+});

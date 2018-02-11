@@ -9,8 +9,7 @@ const MANDATORY_VARS = [
     'GroupId',
     'KafkaOffsetDiffThreshold',
     'KafkaConnectionTimeout',
-    'Topics',
-    'ResumePauseIntervalMs'
+    'Topics'
 ];
 
 function init(configuration) {
@@ -22,7 +21,9 @@ function init(configuration) {
         throw new Error('Missing mandatory environment variables: ' + missingFields);
     }
 
-    verifyParamIsFunction(configuration.ResumePauseCheckFunction, 'ResumePauseCheckFunction');
+    if (configuration.ResumePauseCheckFunction) {
+        verifyParamIsFunction(configuration.ResumePauseCheckFunction, 'ResumePauseCheckFunction');
+    }
     verifyParamIsFunction(configuration.MessageFunction, 'MessageFunction');
 
 
@@ -30,7 +31,7 @@ function init(configuration) {
         .then(() => {
             return consumer.init(configuration);
         }).then(() => {
-            healthChecker.init(configuration)
+            healthChecker.init(configuration);
         });
 }
 
@@ -46,5 +47,5 @@ module.exports = {
     pause: consumer.pause,
     resume: consumer.resume,
     closeConnection: consumer.closeConnection,
-    send: producer.send
+    finishedHandlingMessage: consumer.decreaseMessageInMemory
 };
