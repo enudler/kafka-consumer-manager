@@ -92,8 +92,6 @@ Send a message back to a topic.
 
 Decrease the counter of how many messages currently processed in the service, used with combine of the env params: ResumeMaxMessagesRatio and MaxMessagesInMemory
 
-Send a message back to a topic.
-
 ## Running Tests
 Using mocha and istanbul 
 ```bash
