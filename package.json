@@ -21,10 +21,16 @@
     "offset"
   ],
   "dependencies": {
+    "async": "^2.6.0",
+    "body-parser": "^1.18.2",
     "bunyan": "1.8.12",
+    "express": "^4.16.2",
     "istanbul": "1.0.0-alpha.2",
-    "kafka-node": "2.3.0",
-    "lodash": "4.17.4"
+    "kafka-node": "2.4.1",
+    "lodash": "4.17.4",
+    "request": "^2.83.0",
+    "request-promise": "^4.2.2",
+    "express-node-metrics": "1.4.2"
   },
   "devDependencies": {
     "mochawesome": "2.3.1",

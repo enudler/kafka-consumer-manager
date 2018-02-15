@@ -19,11 +19,9 @@ describe('Verify mandatory params', () => {
     };
 
     beforeEach(() => {
-        fullConfiguration.MessageFunction = (msg) => {
-        };
+        fullConfiguration.MessageFunction = (msg) => {};
 
-        fullConfiguration.ResumePauseCheckFunction = () => {
-        };
+        fullConfiguration.ResumePauseCheckFunction = () => {};
     });
 
     before(() => {
@@ -35,7 +33,6 @@ describe('Verify mandatory params', () => {
         producerInitStub.resolves();
         consumerInitStub.resolves();
         healthCheckerInitStub.resolves();
-
     });
 
     after(() => {
@@ -45,13 +42,18 @@ describe('Verify mandatory params', () => {
     it('All params exists', async () => {
         await kafkaConsumerManager.init(fullConfiguration);
     });
+    it('default params are set ', async () => {
+        await kafkaConsumerManager.init(fullConfiguration);
+        should(fullConfiguration.throttling).equal(false);
+        should(fullConfiguration.throttlingThreshold).equal(300);
+        should(fullConfiguration.flowManagerInterval).equal(1000);
+    });
 
     it('All params are missing', async () => {
         let config = {};
 
         try {
-            await kafkaConsumerManager.init(config, () => {
-            });
+            await kafkaConsumerManager.init(config, () => {});
             throw new Error('Should fail');
         } catch (err) {
             err.message.should.eql('Missing mandatory environment variables: KafkaUrl,GroupId,KafkaOffsetDiffThreshold,KafkaConnectionTimeout,Topics');
@@ -64,8 +66,7 @@ describe('Verify mandatory params', () => {
             delete clonedConfig[key];
 
             try {
-                await kafkaConsumerManager.init(clonedConfig, () => {
-                });
+                await kafkaConsumerManager.init(clonedConfig, () => {});
                 throw new Error('Should fail');
             } catch (err) {
                 if (key.indexOf('FUNCTION') > -1) {
