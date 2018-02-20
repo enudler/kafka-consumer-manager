@@ -31,23 +31,27 @@ function init(config) {
 }
 
 function send(message, topic) {
-    setTimeout(function () {
-        logger.trace(`Producing message, to topic ${topic}`);
+    return new Promise((resolve, reject) => {
+        setTimeout(function () {
+            logger.trace(`Producing message, to topic ${topic}`);
 
-        let payloads = [{
-            topic: topic,
-            messages: [message]
-        }];
+            let payloads = [{
+                topic: topic,
+                messages: [message]
+            }];
 
-        logger.trace('Writing message back to Kafka', payloads);
-        producer.send(payloads, function (error, res) {
-            if (error) {
-                logger.error('Failed to write message to Kafka: ' + message, error);
-            } else {
-                logger.trace('message written back to Kafka ' + JSON.stringify(res));
-            }
-        });
-    }, writeBackDelay);
+            logger.trace('Writing message back to Kafka', payloads);
+            producer.send(payloads, function (error, res) {
+                if (error) {
+                    logger.error('Failed to write message to Kafka: ' + message, error);
+                    return reject(error);
+                } else {
+                    logger.trace('message written back to Kafka ' + JSON.stringify(res));
+                    return resolve();
+                }
+            });
+        }, writeBackDelay);
+    });
 }
 
 module.exports = {
