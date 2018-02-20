@@ -13,9 +13,9 @@ let configuration = {
     KafkaUrl: 'localhost:9092',
     GroupId: 'group-id',
     KafkaConnectionTimeout: 10000,
-    flowManagerInterval: 5000,
+    flowManagerInterval: 10000,
     KafkaOffsetDiffThreshold: 3,
-    Topics: ['ET7'],
+    Topics: ['T3'],
     ResumePauseIntervalMs: 30000,
     throttling: true,
     ResumePauseCheckFunction: () => {
@@ -47,7 +47,7 @@ const app = express();
 app.use(bodyParser.json());
 app.post('/', (req, res) => {
     console.log('body is: ' + JSON.stringify(req.body));
-    kafkaManager.send(req.body.msg, 'ET7');
+    kafkaManager.send(req.body.msg, 'T3');
     res.status(200);
     res.json(req.body);
 });

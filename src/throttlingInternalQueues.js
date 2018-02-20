@@ -13,7 +13,8 @@ function generateThrottlingQueueInstance() {
     let queue;
 
     // TODO: change back to:
-    // return callbackPromise(task.msg).then(() => {
+    // Check what happens if not resolved
+    // return callbackPromise(task.msg).then(() => {   -> so user's function won't affect offset data
     queue = async.queue(function (task, commitOffsetCallback) {
         return callbackPromise(task).then(() => {
             commitOffsetCallback();
@@ -24,7 +25,6 @@ function generateThrottlingQueueInstance() {
 
 function handleIncomingMessage(partition, msg) {
     // console.log('handling incoming message:' + msg.msg);
-
     if (innerQueues[partition]) {
         innerQueues[partition].push(msg, () => {
             commitFunction(msg.partition, msg.offset);
