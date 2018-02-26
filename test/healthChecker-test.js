@@ -31,7 +31,7 @@ describe('Testing health checker', function () {
         let configuration = {
         };
 
-        healthChecker.init(configuration);
+        healthChecker.init(consumer, configuration);
 
         setTimeout(() => {
             should(consumerResumeStub.called).eql(false);
@@ -47,7 +47,7 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
-        healthChecker.init(configuration);
+        healthChecker.init(consumer, configuration);
 
         setTimeout(() => {
             should(consumerResumeStub.calledOnce).eql(true);
@@ -63,7 +63,7 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
-        healthChecker.init(configuration);
+        healthChecker.init(consumer, configuration);
 
         setTimeout(() => {
             should(consumerResumeStub.callCount).eql(3);
@@ -79,7 +79,7 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
-        healthChecker.init(configuration);
+        healthChecker.init(consumer, configuration);
 
         setTimeout(() => {
             should(consumerPauseStub.calledOnce).eql(true);
@@ -95,7 +95,7 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
-        healthChecker.init(configuration);
+        healthChecker.init(consumer, configuration);
 
         setTimeout(() => {
             should(consumerPauseStub.callCount).eql(3);
@@ -112,7 +112,7 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
-        healthChecker.init(configuration);
+        healthChecker.init(consumer, configuration);
 
         setTimeout(() => {
             should(consumerResumeStub.callCount).eql(2);

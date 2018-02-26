@@ -15,7 +15,9 @@ describe('Verify mandatory params', () => {
         GroupId: 'GroupId',
         KafkaConnectionTimeout: '1000',
         KafkaOffsetDiffThreshold: '3',
-        Topics: ['topic-a', 'topic-b']
+        Topics: ['topic-a', 'topic-b'],
+        ResumePauseIntervalMs: 100,
+        AutoCommit: true
     };
 
     beforeEach(() => {
@@ -42,12 +44,6 @@ describe('Verify mandatory params', () => {
     it('All params exists', async () => {
         await kafkaConsumerManager.init(fullConfiguration);
     });
-    it('default params are set ', async () => {
-        await kafkaConsumerManager.init(fullConfiguration);
-        should(fullConfiguration.throttling).equal(false);
-        should(fullConfiguration.throttlingThreshold).equal(300);
-        should(fullConfiguration.flowManagerInterval).equal(1000);
-    });
 
     it('All params are missing', async () => {
         let config = {};
@@ -56,7 +52,7 @@ describe('Verify mandatory params', () => {
             await kafkaConsumerManager.init(config, () => {});
             throw new Error('Should fail');
         } catch (err) {
-            err.message.should.eql('Missing mandatory environment variables: KafkaUrl,GroupId,KafkaOffsetDiffThreshold,KafkaConnectionTimeout,Topics');
+            err.message.should.eql('Missing mandatory environment variables: KafkaUrl,GroupId,KafkaOffsetDiffThreshold,KafkaConnectionTimeout,Topics,ResumePauseIntervalMs,AutoCommit');
         }
     });
 

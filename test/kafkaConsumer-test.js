@@ -12,7 +12,7 @@ let sandbox, consumer,
     consumerGroupStub,
     consumerEventHandlers,
     logErrorStub, consumerStub, fetchStub,
-    offsetStub, logInfoStub, topicPayloads, consumerTopicPayloadsStub,
+    offsetStub, logInfoStub,
     closeStub, pauseStub, resumeStub, actionSpy;
 
 describe('Testing kafka consumer component', function () {

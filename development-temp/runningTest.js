@@ -1,5 +1,5 @@
 'use-strict';
-let manager = require('./kafkaConsumerManager');
+let manager = require('../src/kafkaConsumerManager');
 
 let configuration = {
     KafkaUrl: 'localhost:9092',

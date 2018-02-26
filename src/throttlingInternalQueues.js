@@ -10,31 +10,23 @@ function init(promise, commit) {
 }
 
 function generateThrottlingQueueInstance() {
-    let queue;
-
-    // TODO: change back to:
-    // Check what happens if not resolved
-    // return callbackPromise(task.msg).then(() => {   -> so user's function won't affect offset data
-    queue = async.queue(function (task, commitOffsetCallback) {
-        return callbackPromise(task).then(() => {
-            commitOffsetCallback();
+    let queue = async.queue(function (message, commitOffsetCallback) {
+        return callbackPromise(message).then(() => {
+            commitOffsetCallback(message);
         });
     }, 1);
     return queue;
 }
 
-function handleIncomingMessage(partition, msg) {
-    // console.log('handling incoming message:' + msg.msg);
-    if (innerQueues[partition]) {
-        innerQueues[partition].push(msg, () => {
-            commitFunction(msg.partition, msg.offset);
-        });
-    } else {
+function handleIncomingMessage(message) {
+    // Todo support multiple queue per consumer
+    let partition = message.partition;
+    if (!innerQueues[partition]) {
         innerQueues[partition] = generateThrottlingQueueInstance();
-        innerQueues[partition].push(msg, () => {
-            commitFunction(msg.partition, msg.offset);
-        });
     }
+    innerQueues[partition].push(message, () => {
+        commitFunction(message);
+    });
 }
 
 function getQueueLengths() {
@@ -44,6 +36,7 @@ function getQueueLengths() {
     });
     return lengths;
 }
+
 module.exports = {
     init,
     handleIncomingMessage,

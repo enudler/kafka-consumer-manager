@@ -7,7 +7,7 @@ let throttlingQueues = require('./throttlingInternalQueues'),
 let messagePerQueueThreshold;
 
 function init(threshold, interval) {
-    kafkaConsumer = require('./kafkaConsumer');
+    kafkaConsumer = require('./kafkaStreamConsumer');
     messagePerQueueThreshold = threshold;
     setInterval(() => {
         manageQueues();
@@ -15,9 +15,9 @@ function init(threshold, interval) {
 }
 
 function manageQueues() {
-    logger.info('managing queues..');
+    logger.trace('managing queues..');
     let lengths = throttlingQueues.getQueueLengths();
-    console.log('Inner queues lengths are: ' + lengths);
+    logger.trace('Inner queues lengths are: ' + lengths);
     if (lengths.length < 1) {
         return;
     }
@@ -38,6 +38,7 @@ function manageQueues() {
     logger.info(`calculated msgPerQueue: ${msgPerQueue}`);
     msgPerQueue < messagePerQueueThreshold ? kafkaConsumer.resume() : kafkaConsumer.pause();
 }
+
 module.exports = {
     init
 };

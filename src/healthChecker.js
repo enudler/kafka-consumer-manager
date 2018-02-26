@@ -1,10 +1,8 @@
 let logger = require('./logger'),
-    consumer = require('./kafkaConsumer');
+    configuration,
+    intervalId;
 
-let configuration;
-let intervalId;
-
-function init(config) {
+function init(consumer, config) {
     if (!config.ResumePauseIntervalMs || !config.ResumePauseCheckFunction) {
         logger.info('No ResumePauseIntervalMs or ResumePauseCheckFunction set, functionality disabled');
         return;

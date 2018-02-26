@@ -32,22 +32,23 @@ describe('Testing throttlingInternalQueues component', function () {
                 return innerQueuePushStub;
             });
 
-            throttlingQueue.handleIncomingMessage(4, {
+            let message = {
+                partition: 4,
                 msg: 'some-message'
-            });
+            };
+            throttlingQueue.handleIncomingMessage(message);
             sinon.assert.calledOnce(innerQueuePushStub.push);
-            sinon.assert.calledWith(innerQueuePushStub.push, {
-                msg: 'some-message'
-            });
+            sinon.assert.calledWith(innerQueuePushStub.push, message);
         });
         it('Second call to handleIncomingMessage should write to inner queue ', function () {
-            throttlingQueue.handleIncomingMessage(4, {
+            // Todo missing assertions for create / not create new queue
+            let message = {
+                partition: 4,
                 msg: 'some-message'
-            });
+            };
+            throttlingQueue.handleIncomingMessage(message);
             sinon.assert.calledOnce(innerQueuePushStub.push);
-            sinon.assert.calledWith(innerQueuePushStub.push, {
-                msg: 'some-message'
-            });
+            sinon.assert.calledWith(innerQueuePushStub.push, message);
         });
     });
 });

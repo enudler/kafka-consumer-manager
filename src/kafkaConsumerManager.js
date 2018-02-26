@@ -1,21 +1,28 @@
 let producer = require('./kafkaProducer');
 let consumer = require('./kafkaConsumer');
+let kafkaStreamConsumer = require('./kafkaStreamConsumer');
+
 let healthChecker = require('./healthChecker');
 
 let _ = require('lodash');
 
-const MANDATORY_VARS = [
-    'KafkaUrl',
-    'GroupId',
-    'KafkaOffsetDiffThreshold',
-    'KafkaConnectionTimeout',
-    'Topics',
-    'ResumePauseIntervalMs'
-];
-
 function init(configuration) {
-    let missingFields = _.filter(MANDATORY_VARS, (currVar) => {
-        return !configuration[currVar];
+    let mandatoryVars = [
+        'KafkaUrl',
+        'GroupId',
+        'KafkaOffsetDiffThreshold',
+        'KafkaConnectionTimeout',
+        'Topics',
+        'ResumePauseIntervalMs',
+        'AutoCommit'
+    ];
+
+    if (configuration.AutoCommit === false) {
+        mandatoryVars.push('ThrottlingThresholdPerQueue', 'ThrottlingCheckIntervalMs');
+    }
+
+    let missingFields = _.filter(mandatoryVars, (currVar) => {
+        return !configuration.hasOwnProperty(currVar);
     });
 
     if (missingFields.length > 0) {
@@ -25,20 +32,12 @@ function init(configuration) {
     verifyParamIsFunction(configuration.ResumePauseCheckFunction, 'ResumePauseCheckFunction');
     verifyParamIsFunction(configuration.MessageFunction, 'MessageFunction');
 
-    if (!configuration.hasOwnProperty('throttling')) {
-        configuration['throttling'] = false;
-    }
-    if (!configuration.hasOwnProperty('throttlingThreshold')) {
-        configuration['throttlingThreshold'] = 300;
-    }
-    if (!configuration.hasOwnProperty('flowManagerInterval')) {
-        configuration['flowManagerInterval'] = 1000;
-    }
+    let specificConsumer = configuration.AutoCommit === false ? kafkaStreamConsumer : consumer;
     return producer.init(configuration)
         .then(() => {
-            return consumer.init(configuration);
+            return specificConsumer.init(configuration);
         }).then(() => {
-            // healthChecker.init(configuration);
+            return healthChecker.init(specificConsumer, configuration);
         });
 }
 
