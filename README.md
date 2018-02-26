@@ -86,7 +86,8 @@ Resume the consuming of new messages.
 
 ### kafka-consumer-manager.send(message, topic)
 
-Send a message back to a topic.
+Send a message back to a topic. returns a promise.
+Please note there is 100 delay before writing messages to kafka.
 
 ### kafka-consumer-manager.finishedHandlingMessage()
 

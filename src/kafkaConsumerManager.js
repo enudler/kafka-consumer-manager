@@ -47,5 +47,6 @@ module.exports = {
     pause: consumer.pause,
     resume: consumer.resume,
     closeConnection: consumer.closeConnection,
-    finishedHandlingMessage: consumer.decreaseMessageInMemory
+    finishedHandlingMessage: consumer.decreaseMessageInMemory,
+    send: producer.send
 };

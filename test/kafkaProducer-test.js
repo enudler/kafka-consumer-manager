@@ -11,15 +11,14 @@ let sandbox,
     logTraceStub, configuration,
     logErrorStub, producerStub,
     producer, logInfoStub, producerSendStub,
-    sendStub, onStub, producerEventHandlers;
+    onStub, producerEventHandlers;
 
-describe('Testing kafka producer component', () =>{
+describe('Testing kafka producer component', () => {
     before(() => {
         sandbox = sinon.sandbox.create();
         logErrorStub = sandbox.stub(logger, 'error');
         logInfoStub = sandbox.stub(logger, 'info');
         logTraceStub = sandbox.stub(logger, 'trace');
-        sendStub = sandbox.stub();
         producerSendStub = sandbox.stub();
         onStub = sandbox.stub();
         producerEventHandlers = {};
@@ -53,7 +52,9 @@ describe('Testing kafka producer component', () =>{
                     KafkaConnectionTimeout: 1000
                 };
 
-                setTimeout(() => { producerEventHandlers.ready('connect test') }, 100);
+                setTimeout(() => {
+                    producerEventHandlers.ready('connect test');
+                }, 100);
                 return producer.init(configuration)
                     .then(() => {
                         should(logInfoStub.args[0][0]).eql('Producer is ready');
@@ -83,7 +84,9 @@ describe('Testing kafka producer component', () =>{
     describe('Testing send method', function () {
         beforeEach(function () {
             producer = rewire('../src/kafkaProducer');
-            setTimeout(() => { producerEventHandlers.ready('connect test') }, 100);
+            setTimeout(() => {
+                producerEventHandlers.ready('connect test');
+            }, 100);
             configuration = {
                 KafkaUrl: 'kafka',
                 KafkaConnectionTimeout: 1000
@@ -96,22 +99,20 @@ describe('Testing kafka producer component', () =>{
                 sandbox.resetHistory();
             });
 
-            it('Should call producer.send function on send call', function (done) {
-                sendStub.returns();
+            it('Should call producer.send function on send call', function () {
+                producerSendStub.yields(undefined, {});
 
-                producer.send('{}', 'some_topic');
-
-                setTimeout(function () {
-                    should(logTraceStub.args[0]).eql(['Producing message, to topic some_topic']);
-                    var expectedResult = [{
-                        topic: 'some_topic',
-                        messages: ['{}']
-                    }];
-                    should(producerSendStub.args[0][0]).eql(expectedResult);
-                    producerSendStub.args[0][1]();
-
-                    done();
-                }, 500);
+                let startDate = Date.now();
+                return producer.send('{}', 'some_topic')
+                    .then(() => {
+                        should(Date.now() - startDate).be.within(100, 150);
+                        should(logTraceStub.args[0]).eql(['Producing message, to topic some_topic']);
+                        var expectedResult = [{
+                            topic: 'some_topic',
+                            messages: ['{}']
+                        }];
+                        should(producerSendStub.args[0][0]).eql(expectedResult);
+                    });
             });
         });
 
@@ -120,18 +121,17 @@ describe('Testing kafka producer component', () =>{
                 sandbox.resetHistory();
             });
 
-            it('Should call producer.send function on send call', function (done) {
-                sendStub.rejects();
+            it('Should call producer.send function on send call', function () {
+                producerSendStub.yields(new Error('Error'));
 
-                producer.send(JSON.stringify({key: 'value'}), 'some_topic');
+                return producer.send(JSON.stringify({key: 'value'}), 'some_topic')
+                    .catch((err) => {
+                        should(err.message).eql('Error');
+                        should(logTraceStub.args[0]).eql(['Producing message, to topic some_topic']);
+                        should(logErrorStub.args[0][0]).eql('Failed to write message to Kafka: {"key":"value"}');
+                        should(logErrorStub.args[0][1].message).eql('Error');
 
-                setTimeout(function () {
-                    should(logTraceStub.args[0]).eql(['Producing message, to topic some_topic']);
-                    let error = new Error('error');
-                    producerSendStub.args[0][1](error);
-                    should(logErrorStub.args[0][0]).eql('Failed to write message to Kafka: {"key":"value"}');
-                    done();
-                }, 500);
+                    });
             });
         });
     });
