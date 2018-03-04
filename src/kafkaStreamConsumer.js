@@ -31,7 +31,12 @@ function init(config) {
         logger.trace(`consumerGroupStream got message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
         throttlingQueue.handleIncomingMessage(message);
     });
-
+    consumer.on('error', (err) => {
+        logger.error(err, 'Kafka Error');
+    });
+    consumer.on('close', () => {
+        logger.info('Inner ConsumerGroupStream closed');
+    });
     return Promise.resolve();
 }
 
