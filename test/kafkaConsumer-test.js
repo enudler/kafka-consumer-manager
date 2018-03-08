@@ -4,16 +4,17 @@ let kafka = require('kafka-node'),
     sinon = require('sinon'),
     rewire = require('rewire'),
     _ = require('lodash'),
-    logger = require('../src/logger'),
-    should = require('should');
+    logger = require('../src/helpers/logger'),
+    should = require('should'),
+    consumerOffsetOutOfSyncChecker = require('../src/healthCheckers/consumerOffsetOutOfSyncChecker');
 
 let sandbox, consumer,
-    expectedError,
     consumerGroupStub,
     consumerEventHandlers,
     logErrorStub, consumerStub, fetchStub,
     offsetStub, logInfoStub,
-    closeStub, pauseStub, resumeStub, actionSpy;
+    closeStub, pauseStub, resumeStub, actionSpy,
+    validateOffsetsAreSyncedStub;
 
 describe('Testing kafka consumer component', function () {
     before(function () {
@@ -46,7 +47,7 @@ describe('Testing kafka consumer component', function () {
         };
         offsetStub = sandbox.stub(kafka, 'Offset').returns(offsetStub);
 
-        consumer = rewire('../src/kafkaConsumer');
+        consumer = rewire('../src/consumers/kafkaConsumer');
 
         actionSpy = sinon.spy();
         let configuration = {
@@ -135,27 +136,38 @@ describe('Testing kafka consumer component', function () {
             }, 10);
         });
 
-        it('Testing pause function handling', function (done) {
+        it('Testing pause function handling', function () {
             consumer.pause();
-            setTimeout(function () {
-                should(consumer.__get__('consumerEnabled')).eql(false);
-                should(logInfoStub.args[0]).eql(['Suspending Kafka consumption']);
-                should(pauseStub.calledOnce).eql(true);
-
-                done();
-            }, 10);
+            should(consumer.__get__('consumerEnabled')).eql(false);
+            should(logInfoStub.args[0]).eql(['Suspending Kafka consumption']);
+            should(pauseStub.calledOnce).eql(true);
         });
 
-        it('Testing resume function handling', function (done) {
+        it('Testing resume function handling - too many messages in memory', function () {
+            consumer.setThirsty(false);
+            consumer.setDependencyHealthy(true);
+            consumer.resume();
+            should(logInfoStub.args[0][0]).eql('Not resuming consumption because too many messages in memory');
+            should(resumeStub.calledOnce).eql(false);
+        });
+
+        it('Testing resume function handling - dependency not healthy', function () {
+            consumer.setThirsty(true);
+            consumer.setDependencyHealthy(false);
+            consumer.resume();
+            should(logInfoStub.args[0][0]).eql('Not resuming consumption because dependency check returned false');
+            should(resumeStub.calledOnce).eql(false);
+        });
+
+        it('Testing resume function handling', function () {
+            consumer.setThirsty(true);
+            consumer.setDependencyHealthy(true);
             consumer.__set__('consumerEnabled', false);
             consumer.__set__('shuttingDown', false);
             consumer.resume();
-            setTimeout(function () {
-                should(consumer.__get__('consumerEnabled')).eql(true);
-                should(logInfoStub.args[0]).eql(['Resuming Kafka consumption']);
-                should(resumeStub.calledOnce).eql(true);
-                done();
-            }, 10);
+            should(consumer.__get__('consumerEnabled')).eql(true);
+            should(logInfoStub.args[0]).eql(['Resuming Kafka consumption']);
+            should(resumeStub.calledOnce).eql(true);
         });
     });
 
@@ -176,262 +188,9 @@ describe('Testing kafka consumer component', function () {
         });
     });
 
-    describe('Testing health check method', function () {
-        before(function () {
-            sandbox.reset();
-            consumer.__set__('ready', true);
-        });
-        afterEach(function () {
-            sandbox.reset();
-        });
-
-        it('Should resolve if consumer is disabled', function () {
-            consumer.__set__('consumerEnabled', false);
-            return consumer.healthCheck()
-                .then(() => {
-                    logInfoStub.args[0][0].should.eql('Monitor Offset: Skipping check as the consumer is paused');
-                    consumer.__set__('consumerEnabled', true);
-                });
-        });
-
-        it('Should resolve if consumer is not connected yet', function () {
-            consumer.__set__('consumerEnabled', true);
-            consumer.__set__('previousConsumerReadOffset', undefined);
-
-            return consumer.healthCheck()
-                .then(() => {
-                    logInfoStub.args[0][0].should.eql('Monitor Offset: Skipping check as the consumer is not ready');
-                    consumer.__set__('consumerEnabled', true);
-                    consumer.__set__('previousConsumerReadOffset', []);
-                });
-        });
-
-        it('Should resolve when no partitions data', function () {
-            consumer.__set__('consumerEnabled', true);
-            consumer.__set__('previousConsumerReadOffset', []);
-
-            consumerStub.topicPayloads = [];
-
-            return consumer.healthCheck()
-                .then(() => {
-                    fetchStub.called.should.be.eql(false);
-                });
-        });
-
-        it('Should resolve when all the partitions incremented from last check', function () {
-            consumer.__set__('consumerEnabled', true);
-            consumer.__set__('previousConsumerReadOffset', [{topic: 'A', partition: 'B', offset: 1}]);
-
-            consumerStub.topicPayloads = [{topic: 'A', partition: 'B', offset: 2}];
-
-            return consumer.healthCheck()
-                .then(() => {
-                    fetchStub.called.should.be.eql(false);
-                });
-        });
-
-        it('Should return normally when offset not incremneted but the consumer is in sync with ZooKeeper', function () {
-            let expectedFetchArgs = [{
-                topic: 'topic',
-                partition: 'partition',
-                time: -1
-            }];
-
-            fetchStub.yields(undefined, {
-                'topic': {
-                    'partition': [1]
-                }
-            });
-
-            consumer.__set__('consumerEnabled', true);
-            consumer.__set__('previousConsumerReadOffset', [{topic: 'topic', partition: 'partition', offset: 1}]);
-
-            consumerStub.topicPayloads = [{topic: 'topic', partition: 'partition', offset: 1}];
-
-            return consumer.healthCheck()
-                .then(() => {
-                    fetchStub.called.should.eql(true);
-                    fetchStub.args[0][0].should.eql(expectedFetchArgs);
-                });
-        });
-
-        it('Should return normally when the partition is not available in in previousConsumerReadOffset', function () {
-            fetchStub.yields(undefined, {
-                'topicA': {
-                    'partitionA': [1]
-                }
-            });
-
-            consumer.__set__('consumerEnabled', true);
-            consumer.__set__('previousConsumerReadOffset', [{topic: 'topicC', partition: 'partitionC', offset: 1}]);
-
-            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 1}];
-
-            return consumer.healthCheck()
-                .then(() => {
-                    fetchStub.called.should.eql(false);
-                });
-        });
-
-        it('Should return normally when one of the offset not incremented but the consumer is in sync with ZooKeeper', function () {
-            let expectedFetchArgs = [{
-                topic: 'topicB',
-                partition: 'partitionB',
-                time: -1
-            }];
-
-            fetchStub.yields(undefined, {
-                'topicA': {
-                    'partitionA': [60]
-                },
-                'topicB': {
-                    'partitionB': [100]
-                }
-            });
-
-            consumer.__set__('consumerEnabled', true);
-            consumer.__set__('previousConsumerReadOffset', [{
-                topic: 'topicA',
-                partition: 'partitionA',
-                offset: 50
-            }, {topic: 'topicB', partition: 'partitionB', offset: 100}]);
-
-            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 60}, {
-                topic: 'topicB',
-                partition: 'partitionB',
-                offset: 100
-            }];
-
-            return consumer.healthCheck()
-                .then(() => {
-                    fetchStub.called.should.eql(true);
-                    fetchStub.args[0][0].should.eql(expectedFetchArgs);
-                });
-        });
-
-        it('Should NOT return an error when the consumer is of of sync less than 3 messages', function (done) {
-            let expectedFetchArgs = [{
-                topic: 'topicB',
-                partition: 'partitionB',
-                time: -1
-            }];
-
-            fetchStub.yields(undefined, {
-                'topicA': {
-                    'partitionA': [60]
-                },
-                'topicB': {
-                    'partitionB': [103]
-                }
-            });
-
-            consumer.__set__('consumerEnabled', true);
-            consumer.__set__('previousConsumerReadOffset', [{topic: 'topicA', partition: 'partitionA', offset: 60},
-                {topic: 'topicB', partition: 'partitionB', offset: 100}]);
-
-            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 61},
-                {topic: 'topicB', partition: 'partitionB', offset: 100}];
-
-            consumer.healthCheck()
-                .then(() => {
-                    fetchStub.called.should.eql(true);
-                    fetchStub.args[0][0].should.eql(expectedFetchArgs);
-                    done();
-                });
-        });
-
-        it('Should return an error when offset.fetch fails', function (done) {
-            expectedError = new Error('error');
-            fetchStub.yields(expectedError);
-
-            consumer.__set__('consumerEnabled', true);
-            consumer.__set__('previousConsumerReadOffset', [{
-                topic: 'topicA',
-                partition: 'partitionA',
-                offset: 60
-            }]);
-
-            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 60}];
-
-            expectedError = new Error('error');
-            fetchStub.yields(expectedError);
-            consumer.healthCheck()
-                .then(function () {
-                    done(new Error('healthCheck function did not throw an error as expected'));
-                })
-                .catch((error) => {
-                    logErrorStub.args[0].should.eql([expectedError, 'Monitor Offset: Failed to fetch offsets']);
-                    error.should.eql(new Error('Monitor Offset: Failed to fetch offsets:' + expectedError.message));
-                    fetchStub.called.should.eql(true);
-                    done();
-                });
-        });
-
-        it('Should return an error when the consumer is NOT in sync', function (done) {
-            let expectedFetchArgs = [{
-                topic: 'topicB',
-                partition: 'partitionB',
-                time: -1
-            }];
-
-            fetchStub.yields(undefined, {
-                'topicA': {
-                    'partitionA': [60]
-                },
-                'topicB': {
-                    'partitionB': [104]
-                }
-            });
-
-            consumer.__set__('consumerEnabled', true);
-            consumer.__set__('previousConsumerReadOffset', [{topic: 'topicA', partition: 'partitionA', offset: 60},
-                {topic: 'topicB', partition: 'partitionB', offset: 100}]);
-
-            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 61},
-                {topic: 'topicB', partition: 'partitionB', offset: 100}];
-
-            consumer.healthCheck()
-                .then(() => done(new Error('healthCheck function did not throw an error as expected')))
-                .catch((error) => {
-                    let state = {
-                        topic: 'topicB',
-                        partition: 'partitionB',
-                        partitionLatestOffset: 104,
-                        partitionReadOffset: 100,
-                        unhandledMessages: 4
-                    };
-
-                    fetchStub.called.should.eql(true);
-                    logErrorStub.args[0].should.eql(['Monitor Offset: Kafka consumer offsets found to be out of sync', state]);
-                    error.should.eql(new Error(('Monitor Offset: Kafka consumer offsets found to be out of sync:' + JSON.stringify(state))));
-                    fetchStub.called.should.eql(true);
-                    done();
-                });
-        });
-
-        it('Should return an error when the consumer topics/partitions is NOT in sync', function () {
-            consumer.__set__('consumerEnabled', true);
-            consumer.__set__('previousConsumerReadOffset', [{topic: 'topicA', partition: 'partitionA', offset: 60}]);
-            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 60}];
-            fetchStub.yields(undefined, {
-                'topicA': {}
-            });
-            return consumer.healthCheck()
-                .then(() => Promise.reject(new Error('healthCheck function did not throw an error as expected')))
-                .catch((error) => {
-                    fetchStub.called.should.eql(true);
-                    // logInfoStub.args[0][0].should.eql('Monitor Offset: No progress detected in offsets since the last check. Checking that the consumer is in sync..');
-                    logErrorStub.args[0][0].should.eql('Monitor Offset: Kafka consumer topics/partitions found to be out of sync in topic: topicA and in partition:partitionA');
-                    error.should.eql(new Error('Monitor Offset: Kafka consumer topics/partitions found to be out of sync in topic: topicA and in partition:partitionA'));
-                    fetchStub.called.should.eql(true);
-                });
-        });
-    });
-
     describe('Testing Max messages in memory', function () {
         before(function () {
             sandbox.reset();
-            consumer.__set__('ready', true);
             consumer.__set__('messagesInMemory', 0);
             consumer.__set__('consumerEnabled', true);
             consumer.__set__('shuttingDown', false);
@@ -471,6 +230,38 @@ describe('Testing kafka consumer component', function () {
                 consumer.decreaseMessageInMemory();
                 consumer.__get__('consumerEnabled').should.be.eql(i === 0);
             }
+        });
+    });
+
+    describe('testing validateOffsetsAreSynced methods', function () {
+        before(function () {
+            sandbox.reset();
+            consumer.__set__('messagesInMemory', 0);
+            consumer.__set__('consumerEnabled', true);
+            consumer.__set__('shuttingDown', false);
+            validateOffsetsAreSyncedStub = sandbox.stub(consumerOffsetOutOfSyncChecker, 'validateOffsetsAreSynced');
+            validateOffsetsAreSyncedStub.resolves();
+        });
+
+        afterEach(function () {
+            sandbox.resetHistory();
+        });
+
+        it('validateOffsetsAreSynced is not called since no consumer is not enabled yet', function () {
+            consumer.__set__('consumerEnabled', false);
+            return consumer.validateOffsetsAreSynced()
+                .then(() => {
+                    should(logInfoStub.args[0][0]).eql('Monitor Offset: Skipping check as the consumer is paused');
+                    sinon.assert.callCount(validateOffsetsAreSyncedStub, 0);
+                });
+        });
+
+        it('validateOffsetsAreSynced is called since consumer is enabled', function () {
+            consumer.__set__('consumerEnabled', true);
+            return consumer.validateOffsetsAreSynced()
+                .then(() => {
+                    sinon.assert.callCount(validateOffsetsAreSyncedStub, 1);
+                });
         });
     });
 });

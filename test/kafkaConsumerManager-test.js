@@ -1,14 +1,15 @@
 'use strict';
 
 let sinon = require('sinon'),
+    rewire = require('rewire'),
     should = require('should');
 
 describe('Verify mandatory params', () => {
     let sandbox;
-    let kafkaConsumerManager = require('../src/kafkaConsumerManager');
-    let producer = require('../src/kafkaProducer');
-    let consumer = require('../src/kafkaConsumer');
-    let healthChecker = require('../src/healthChecker');
+    let kafkaConsumerManager = rewire('../src/kafkaConsumerManager');
+    let producer = require('../src/producers/kafkaProducer');
+    let consumer = require('../src/consumers/kafkaConsumer');
+    let healthChecker = require('../src/healthCheckers/dependencyChecker');
 
     let fullConfiguration = {
         KafkaUrl: 'url',
@@ -21,9 +22,11 @@ describe('Verify mandatory params', () => {
     };
 
     beforeEach(() => {
-        fullConfiguration.MessageFunction = (msg) => {};
+        fullConfiguration.MessageFunction = (msg) => {
+        };
 
-        fullConfiguration.ResumePauseCheckFunction = () => {};
+        fullConfiguration.ResumePauseCheckFunction = () => {
+        };
     });
 
     before(() => {
@@ -49,7 +52,8 @@ describe('Verify mandatory params', () => {
         let config = {};
 
         try {
-            await kafkaConsumerManager.init(config, () => {});
+            await kafkaConsumerManager.init(config, () => {
+            });
             throw new Error('Should fail');
         } catch (err) {
             err.message.should.eql('Missing mandatory environment variables: KafkaUrl,GroupId,KafkaOffsetDiffThreshold,KafkaConnectionTimeout,Topics,ResumePauseIntervalMs,AutoCommit');
@@ -62,7 +66,8 @@ describe('Verify mandatory params', () => {
             delete clonedConfig[key];
 
             try {
-                await kafkaConsumerManager.init(clonedConfig, () => {});
+                await kafkaConsumerManager.init(clonedConfig, () => {
+                });
                 throw new Error('Should fail');
             } catch (err) {
                 if (key.indexOf('FUNCTION') > -1) {
@@ -72,5 +77,53 @@ describe('Verify mandatory params', () => {
                 }
             }
         });
+    });
+});
+
+describe('Verify export functions', () => {
+
+    let sandbox, consumer, resumeStub, pauseStub, validateOffsetsAreSyncedStub,
+        closeConnectionStub, decreaseMessageInMemoryStub, kafkaConsumerManager;
+
+    before(() => {
+        kafkaConsumerManager = rewire('../src/kafkaConsumerManager');
+        sandbox = sinon.sandbox.create();
+        resumeStub = sandbox.stub();
+        pauseStub = sandbox.stub();
+        validateOffsetsAreSyncedStub = sandbox.stub();
+        closeConnectionStub = sandbox.stub();
+        decreaseMessageInMemoryStub = sandbox.stub();
+
+        let consumer = {
+            resume: resumeStub,
+            pause: pauseStub,
+            validateOffsetsAreSynced: validateOffsetsAreSyncedStub,
+            closeConnection: closeConnectionStub,
+            decreaseMessageInMemory: decreaseMessageInMemoryStub
+        };
+        kafkaConsumerManager.__set__('chosenConsumer', consumer);
+    });
+
+    after(() => {
+        sandbox.restore();
+
+    });
+
+    it('Verify methods going to the correct consumer', () => {
+
+        kafkaConsumerManager.resume();
+        should(resumeStub.calledOnce).eql(true);
+
+        kafkaConsumerManager.pause();
+        should(pauseStub.calledOnce).eql(true);
+
+        kafkaConsumerManager.validateOffsetsAreSynced();
+        should(validateOffsetsAreSyncedStub.calledOnce).eql(true);
+
+        kafkaConsumerManager.closeConnection();
+        should(closeConnectionStub.calledOnce).eql(true);
+
+        kafkaConsumerManager.finishedHandlingMessage();
+        should(decreaseMessageInMemoryStub.calledOnce).eql(true);
     });
 });

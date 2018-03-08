@@ -5,10 +5,12 @@
 
 
 This package is used to to simplify the common use of kafka consumer by:
-* Provides api for kafka consumer health check by checking that the offset of the partition is synced
-* Accepts a callback function with the business logic each consumed message should go through
-* Accepts a callback function with the business logic of when to pause and when to resume the consuming
+* Provides support for autoCommit: false and throttling by saving messages to queues and working messages by message per partition, (concurrency level equals to the partitions number)
+* Provides api for kafka consumer offset out of sync check by checking that the offset of the partition is synced to zookeeper
+* Accepts a promise with the business logic each consumed message should go through
+* Accepts a promise function with the business logic of when to pause and when to resume the consuming
 * Provides api for sending message back to the topic (usually for retries)
+
 
 ## Install
 ```bash
@@ -54,11 +56,21 @@ kafkaConsumerManager.init(configuration)
 * `KafkaOffsetDiffThreshold` &ndash; Tolerance for how far the partition offset of the consumer can be from the real offset, this value is used by the health check to reject in case the offset is out of sync.
 * `Topics` &ndash; Array of topics that should be consumed.
 * `ResumePauseIntervalMs` &ndash; Interval of when to run the ResumePauseCheckFunction (Optional).
-* `ResumePauseCheckFunction` &ndash; Function that in case of return value is true, the consumer will be resumed, if false it will be paused (Optional).
-* `MessageFunction` &ndash; Function that applied to each consumed message, this function accepts one param (message).
+* `ResumePauseCheckFunction` &ndash; Promise that in case of return value is true, the consumer will be resumed, if false it will be paused (Optional).
+* `MessageFunction` &ndash; Promise that applied to each consumed message, this function accepts one param (message), please make sure to resolve only after messages is considered as done.
 * `FetchMaxBytes` &ndash; The maximum bytes to include in the message set for this partition. This helps bound the size of the response. (Default 1024^2).
+* `WriteBackDelay` &ndash; Delay the produced messages by ms. (optional).
+* `AutoCommit` &ndash; Boolean, If AutoCommit is false, the consumer will queue messages from each partition to a specific queue and will handle messages by the order and commit the offset when it's done.
+
+##### AutoCommit: false settings
+
 * `MaxMessagesInMemory` &ndash; If enabled, the consumer will pause after having this number of messages in memory, to lower the counter call the finishedHandlingMessage function (Optional).
 * `ResumeMaxMessagesRatio` &ndash; If enabled when the consumer is paused it will resume only when MaxMessagesInMemory * ResumeMaxMessagesRatio < CurrentMessagesInMemory, number should be below 1 (Optional).
+
+##### AutoCommit: true settings
+
+* `ThrottlingThreshold` &ndash; If the consumer will have more messages than this value it will pause, it will resume consuming once the value is below that given threshold`.
+* `ThrottlingCheckIntervalMs` &ndash; The interval in ms of when to check if messages are above or below the threshold`.
 
 ### kafka-consumer-manager.init(configuration)
 
@@ -66,9 +78,9 @@ Init the consumer and the producer, make sure to pass full configuration object 
 
 The function returns Promise.
 
-### kafka-consumer-manager.healthCheck()
+### kafka-consumer-manager.validateOffsetsAreSynced()
 
-Runs a health check checking the connection to kafka, also testing that offset is not out of sync according to KafkaOffsetDiffThreshold
+Runs a check the offset of the partitions are synced and moving as expected by checking progress and zookeeper offsets.
 
 The function returns Promise.
 
@@ -87,11 +99,11 @@ Resume the consuming of new messages.
 ### kafka-consumer-manager.send(message, topic)
 
 Send a message back to a topic. returns a promise.
-Please note there is 100 delay before writing messages to kafka.
 
 ### kafka-consumer-manager.finishedHandlingMessage()
 
 Decrease the counter of how many messages currently processed in the service, used with combine of the env params: ResumeMaxMessagesRatio and MaxMessagesInMemory
+Only relevant for autoCommit: true
 
 ## Running Tests
 Using mocha and istanbul 

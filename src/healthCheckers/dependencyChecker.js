@@ -1,4 +1,4 @@
-let logger = require('./logger'),
+let logger = require('../helpers/logger'),
     configuration,
     intervalId;
 
@@ -10,12 +10,14 @@ function init(consumer, config) {
     configuration = config;
     intervalId = setInterval(() => {
         configuration.ResumePauseCheckFunction()
-            .then((isHealthy) => {
-                if (isHealthy) {
-                    logger.info('ran health check and got health OK, will resume consumer if it was stopped');
+            .then((shouldResume) => {
+                if (shouldResume) {
+                    logger.info('ran ResumePauseCheckFunction and got should resume. will try to resume consumer if it was stopped');
+                    consumer.setDependencyHealthy(true);
                     consumer.resume();
                 } else {
-                    logger.info('ran health check and got health DOWN, will pause consumer if it was running');
+                    logger.info('ran ResumePauseCheckFunction and got should pause, will pause consumer if it was running');
+                    consumer.setDependencyHealthy(false);
                     consumer.pause();
                 }
             });

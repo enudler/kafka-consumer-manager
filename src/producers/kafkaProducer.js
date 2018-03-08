@@ -1,15 +1,14 @@
 'use strict';
-let writeBackDelay = 100,
-    kafka = require('kafka-node'),
-    _ = require('lodash'),
-    logger = require('./logger'),
+let kafka = require('kafka-node'),
+    logger = require('../helpers/logger'),
     HighLevelProducer = kafka.HighLevelProducer,
-    configuration, producer, client, timeOutPromise, successPromise;
+    configuration, producer, client, timeOutPromise, successPromise, writeBackDelay;
 
 function init(config) {
     configuration = config;
     client = new kafka.KafkaClient({kafkaHost: configuration.KafkaUrl});
     producer = new HighLevelProducer(client, {requireAcks: 1});
+    writeBackDelay = configuration.WriteBackDelay || 0;
 
     successPromise = new Promise((resolve) => {
         producer.on('ready', function () {

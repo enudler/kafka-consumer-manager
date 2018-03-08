@@ -1,9 +1,9 @@
-let producer = require('./kafkaProducer');
-let consumer = require('./kafkaConsumer');
-let kafkaStreamConsumer = require('./kafkaStreamConsumer');
+let producer = require('./producers/kafkaProducer');
+let kafkaConsumer = require('./consumers/kafkaConsumer');
+let kafkaStreamConsumer = require('./consumers/kafkaStreamConsumer');
 
-let healthChecker = require('./healthChecker');
-
+let dependencyChecker = require('./healthCheckers/dependencyChecker');
+let chosenConsumer = {};
 let _ = require('lodash');
 
 function init(configuration) {
@@ -18,7 +18,7 @@ function init(configuration) {
     ];
 
     if (configuration.AutoCommit === false) {
-        mandatoryVars.push('ThrottlingThresholdPerQueue', 'ThrottlingCheckIntervalMs');
+        mandatoryVars.push('ThrottlingThreshold', 'ThrottlingCheckIntervalMs');
     }
 
     let missingFields = _.filter(mandatoryVars, (currVar) => {
@@ -32,12 +32,12 @@ function init(configuration) {
     verifyParamIsFunction(configuration.ResumePauseCheckFunction, 'ResumePauseCheckFunction');
     verifyParamIsFunction(configuration.MessageFunction, 'MessageFunction');
 
-    let specificConsumer = configuration.AutoCommit === false ? kafkaStreamConsumer : consumer;
+    chosenConsumer = configuration.AutoCommit === false ? kafkaStreamConsumer : kafkaConsumer;
     return producer.init(configuration)
         .then(() => {
-            return specificConsumer.init(configuration);
+            return chosenConsumer.init(configuration);
         }).then(() => {
-            return healthChecker.init(specificConsumer, configuration);
+            return dependencyChecker.init(chosenConsumer, configuration);
         });
 }
 
@@ -49,9 +49,10 @@ function verifyParamIsFunction(param, paramName) {
 
 module.exports = {
     init: init,
-    healthCheck: consumer.healthCheck,
-    pause: consumer.pause,
-    resume: consumer.resume,
-    closeConnection: consumer.closeConnection,
+    validateOffsetsAreSynced: () => chosenConsumer.validateOffsetsAreSynced(),
+    pause: () => chosenConsumer.pause(),
+    resume: () => chosenConsumer.resume(),
+    closeConnection: () => chosenConsumer.closeConnection(),
+    finishedHandlingMessage: () => chosenConsumer.decreaseMessageInMemory(),
     send: producer.send
 };

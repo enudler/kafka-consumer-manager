@@ -1,81 +1,21 @@
+'use strict';
+
 let kafka = require('kafka-node'),
-    logger = require('./logger'),
-    previousConsumerReadOffset,
+    logger = require('../helpers/logger'),
     _ = require('lodash');
 
-let configuration, consumer, offset, errorsToHealthCheck, shuttingDown, ready,
-    consumerEnabled, successPromise, timeOutPromise, alreadyConnected;
+let previousConsumerReadOffset, offset, consumer, errorsToHealthCheck, configuration;
 
-let messagesInMemory = 0;
-
-function init(config) {
+function init(consumerGroup, config) {
+    consumer = consumerGroup;
     configuration = config;
-    alreadyConnected = false;
-    shuttingDown = false;
-    consumerEnabled = true;
-
-    successPromise = new Promise((resolve, reject) => {
-        let options = {
-            kafkaHost: configuration.KafkaUrl,
-            autoCommit: true,
-            groupId: configuration.GroupId,
-            sessionTimeout: 10000,
-            protocol: ['roundrobin'],
-            encoding: 'utf8',
-            fetchMaxBytes: configuration.FetchMaxBytes || 1024 * 1024
-        };
-
-        consumer = new kafka.ConsumerGroup(options, configuration.Topics);
-        offset = new kafka.Offset(consumer.client);
-        consumer.on('message', (message) => {
-            increaseMessageInMemory();
-            configuration.MessageFunction(message);
-        });
-
-        consumer.on('error', function (err) {
-            logger.error(err, 'Kafka Error');
-        });
-
-        consumer.on('offsetOutOfRange', function (err) {
-            logger.error(err, 'offsetOutOfRange Error');
-        });
-
-        consumer.on('connect', function () {
-            logger.info('Kafka client is ready');
-            logger.info('topicPayloads', consumer.topicPayloads);
-            // Consumer is ready when "connect" event is fired + consumer has topicPayload metadata
-            if (!alreadyConnected && consumer.topicPayloads.length !== 0) {
-                previousConsumerReadOffset = _.cloneDeep(consumer.topicPayloads);
-                alreadyConnected = true;
-                ready = true;
-                resolve();
-            }
-        });
-    });
-
-    timeOutPromise = new Promise((resolve, reject) => {
-        setTimeout(() => {
-            reject(new Error(`Failed to connect to kafka after ${configuration.KafkaConnectionTimeout} ms.`));
-        }, configuration.KafkaConnectionTimeout);
-    });
-
-    return Promise.race([
-        successPromise,
-        timeOutPromise
-    ]);
+    offset = new kafka.Offset(consumer.client);
+    previousConsumerReadOffset = _.cloneDeep(consumer.topicPayloads);
 }
 
-function healthCheck() {
+function validateOffsetsAreSynced() {
     return new Promise((resolve, reject) => {
-        // If consumer is not ready yet - do not try to check offsets
-        if (!ready) {
-            return resolve();
-        }
-
-        if (!consumerEnabled) {
-            logger.info('Monitor Offset: Skipping check as the consumer is paused');
-            return resolve();
-        } else if (!previousConsumerReadOffset) {
+        if (!previousConsumerReadOffset) {
             logger.info('Monitor Offset: Skipping check as the consumer is not ready');
             return resolve();
         }
@@ -171,60 +111,7 @@ function isOffsetsInSync(notIncrementedTopicPayloads, zookeeperOffsets) {
     return isSynced;
 }
 
-function closeConnection() {
-    shuttingDown = true;
-    logger.info('Consumer is closing connection');
-    consumer.close(function (err) {
-        if (err) {
-            logger.error('Error when trying to close connection with kafka', {errorMessage: err.message});
-        }
-    });
-}
-
-function pause() {
-    if (consumerEnabled) {
-        logger.info('Suspending Kafka consumption');
-        consumerEnabled = false;
-        consumer.pause();
-    }
-}
-
-function resume() {
-    if (!shuttingDown && !consumerEnabled) {
-        logger.info('Resuming Kafka consumption');
-        consumerEnabled = true;
-        consumer.resume();
-    }
-}
-
-function increaseMessageInMemory() {
-    if (!configuration.MaxMessagesInMemory || !configuration.ResumeMaxMessagesRatio) {
-        return;
-    }
-    messagesInMemory++;
-    if (consumerEnabled && messagesInMemory >= configuration.MaxMessagesInMemory) {
-        logger.info(`Reached ${messagesInMemory} messages (max is ${configuration.MaxMessagesInMemory}), pausing kafka consumers`);
-        pause();
-    }
-}
-
-function decreaseMessageInMemory() {
-    if (!configuration.MaxMessagesInMemory || !configuration.ResumeMaxMessagesRatio) {
-        logger.warn('MaxMessagesInMemory and ResumeMaxMessagesRatio must have value to enable this feature');
-        return;
-    }
-    messagesInMemory--;
-    if (!consumerEnabled && messagesInMemory < configuration.MaxMessagesInMemory * configuration.ResumeMaxMessagesRatio) {
-        logger.info(`Reached below ${configuration.ResumeMaxMessagesRatio}% of ${configuration.MaxMessagesInMemory} concurrent messages, resuming kafka`);
-        resume();
-    }
-}
-
 module.exports = {
-    init: init,
-    healthCheck: healthCheck,
-    pause: pause,
-    resume: resume,
-    closeConnection: closeConnection,
-    decreaseMessageInMemory: decreaseMessageInMemory
+    init,
+    validateOffsetsAreSynced
 };

@@ -1,19 +1,17 @@
 const express = require('express');
 let bodyParser = require('body-parser');
 let kafkaManager = require('../src/kafkaConsumerManager');
-let rp = require('request-promise');
-let metrics = require('express-node-metrics');
-let logger = require('../src/logger');
+let logger = require('../src/helpers/logger');
 let configuration = {
     KafkaUrl: 'localhost:9092',
     GroupId: 'group-id',
     KafkaConnectionTimeout: 10000,
     flowManagerInterval: 10000,
     KafkaOffsetDiffThreshold: 3,
-    Topics: ['abcccc'],
+    Topics: ['A', 'B'],
     ResumePauseIntervalMs: 30000,
     AutoCommit: false,
-    ThrottlingThresholdPerQueue: 3,
+    ThrottlingThreshold: 25,
     ThrottlingCheckIntervalMs: 10000,
 
     ResumePauseCheckFunction: () => {
@@ -22,7 +20,6 @@ let configuration = {
     MessageFunction: (message) => {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
-                logger.trace(`finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
                 return resolve();
             }, 500);
         });
@@ -33,13 +30,19 @@ const app = express();
 app.use(bodyParser.json());
 app.post('/', (req, res) => {
     console.log('body is: ' + JSON.stringify(req.body));
-    kafkaManager.send(JSON.stringify({hello: 'key'}), 'abcccc');
+    kafkaManager.send(JSON.stringify({hello: 'keya'}), 'A');
+    kafkaManager.send(JSON.stringify({hello: 'keyb'}), 'B');
+
     res.status(200);
     res.json(req.body);
 });
 
+
+setInterval(() => kafkaManager.validateOffsetsAreSynced(), 10000);
 app.get('/metrics', (req, res) => {
-    return res.json(JSON.parse(metrics.metrics.getAll(true)));
+    setTimeout(() => {
+        return res.json({});
+    }, 0);
 });
 
 kafkaManager.init(configuration)
@@ -50,3 +53,4 @@ kafkaManager.init(configuration)
         console.log(err);
         process.exit(1);
     });
+

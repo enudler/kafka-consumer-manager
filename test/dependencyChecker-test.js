@@ -5,8 +5,8 @@ let sinon = require('sinon'),
 
 describe('Testing health checker', function () {
     let sandbox, consumerPauseStub, consumerResumeStub;
-    let consumer = require('../src/kafkaConsumer');
-    let healthChecker = require('../src/healthChecker');
+    let consumer = require('../src/consumers/kafkaConsumer');
+    let healthChecker = require('../src/healthCheckers/dependencyChecker');
 
     before(() => {
         sandbox = sinon.sandbox.create();
