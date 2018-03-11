@@ -18,7 +18,9 @@
     "consumer",
     "manager",
     "retries",
-    "offset"
+    "offset",
+    "throttling",
+    "autocommit"
   ],
   "dependencies": {
     "async": "^2.6.0",
