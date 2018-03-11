@@ -1,8 +1,9 @@
 # kafka-consumer-manager
 
+[![Build Status](https://travis-ci.org/enudler/kafka-consumer-manager.svg?branch=master)](https://travis-ci.org/enudler/kafka-consumer-manager)
+
 [![NPM](https://nodei.co/npm/kafka-consumer-manager.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/kafka-consumer-manager/)
 [![NPM](https://nodei.co/npm-dl/kafka-consumer-manager.png?months=1)](https://nodei.co/npm/kafka-consumer-manager/)
-
 
 This package is used to to simplify the common use of kafka consumer by:
 * Provides support for autoCommit: false and throttling by saving messages to queues and working messages by message per partition, (concurrency level equals to the partitions number)
