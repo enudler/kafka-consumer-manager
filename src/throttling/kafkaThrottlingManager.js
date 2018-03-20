@@ -61,7 +61,7 @@ function manageQueues() {
         totalMessagesInQueues += lengthsByTopic[topic].reduce((a, b) => a + b, 0);
     });
 
-    logger.info('Total messages in queues are: ' + totalMessagesInQueues);
+    logger.trace('Total messages in queues are: ' + totalMessagesInQueues);
     let shouldResume = totalMessagesInQueues < messagesInMemoryThreshold;
     kafkaConsumer.setThirsty(shouldResume);
     shouldResume ? kafkaConsumer.resume() : kafkaConsumer.pause();

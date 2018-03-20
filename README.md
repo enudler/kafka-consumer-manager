@@ -63,12 +63,12 @@ kafkaConsumerManager.init(configuration)
 * `WriteBackDelay` &ndash; Delay the produced messages by ms. (optional).
 * `AutoCommit` &ndash; Boolean, If AutoCommit is false, the consumer will queue messages from each partition to a specific queue and will handle messages by the order and commit the offset when it's done.
 
-##### AutoCommit: false settings
+##### AutoCommit: true settings
 
 * `MaxMessagesInMemory` &ndash; If enabled, the consumer will pause after having this number of messages in memory, to lower the counter call the finishedHandlingMessage function (Optional).
 * `ResumeMaxMessagesRatio` &ndash; If enabled when the consumer is paused it will resume only when MaxMessagesInMemory * ResumeMaxMessagesRatio < CurrentMessagesInMemory, number should be below 1 (Optional).
 
-##### AutoCommit: true settings
+##### AutoCommit: false settings
 
 * `ThrottlingThreshold` &ndash; If the consumer will have more messages than this value it will pause, it will resume consuming once the value is below that given threshold`.
 * `ThrottlingCheckIntervalMs` &ndash; The interval in ms of when to check if messages are above or below the threshold`.
