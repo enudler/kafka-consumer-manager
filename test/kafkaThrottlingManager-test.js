@@ -48,7 +48,7 @@ describe('Testing kafkaThrottlingManager component', () => {
 
         it('Verify manageQueues was called and not paused', () => {
             should(logTraceStub.args[0][0]).eql('managing queues..');
-            should(logInfoStub.args[0][0]).eql('Total messages in queues are: 0');
+            should(logTraceStub.args[1][0]).eql('Total messages in queues are: 0');
             should(consumerSetThirstyStub.args[0][0]).eql(true);
             should(consumerResumeStub.calledOnce).eql(true);
             should(consumerPauseStub.callCount).eql(0);
@@ -67,7 +67,7 @@ describe('Testing kafkaThrottlingManager component', () => {
 
         it('Verify manageQueues was called and paused', () => {
             should(logTraceStub.args[0][0]).eql('managing queues..');
-            should(logInfoStub.args[0][0]).eql('Total messages in queues are: 24');
+            should(logTraceStub.args[1][0]).eql('Total messages in queues are: 24');
             should(consumerSetThirstyStub.args[0][0]).eql(false);
             should(consumerResumeStub.callCount).eql(0);
             should(consumerPauseStub.calledOnce).eql(true);

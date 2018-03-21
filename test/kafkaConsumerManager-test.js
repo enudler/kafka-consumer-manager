@@ -17,7 +17,6 @@ describe('Verify mandatory params', () => {
         KafkaConnectionTimeout: '1000',
         KafkaOffsetDiffThreshold: '3',
         Topics: ['topic-a', 'topic-b'],
-        ResumePauseIntervalMs: 100,
         AutoCommit: true
     };
 
@@ -56,7 +55,7 @@ describe('Verify mandatory params', () => {
             });
             throw new Error('Should fail');
         } catch (err) {
-            err.message.should.eql('Missing mandatory environment variables: KafkaUrl,GroupId,KafkaOffsetDiffThreshold,KafkaConnectionTimeout,Topics,ResumePauseIntervalMs,AutoCommit');
+            err.message.should.eql('Missing mandatory environment variables: KafkaUrl,GroupId,KafkaOffsetDiffThreshold,KafkaConnectionTimeout,Topics,AutoCommit');
         }
     });
 
@@ -78,10 +77,33 @@ describe('Verify mandatory params', () => {
             }
         });
     });
+
+    it('ResumePauseIntervalMs exists without the ResumePauseCheckFunction should fail', async () => {
+        let fullConfigurationWithPauseResume = JSON.parse(JSON.stringify(fullConfiguration));
+        fullConfigurationWithPauseResume.ResumePauseIntervalMs = 1000;
+        try {
+            await kafkaConsumerManager.init(fullConfigurationWithPauseResume, () => {
+            });
+            throw new Error('Should fail');
+        } catch (err) {
+            err.message.should.eql('ResumePauseCheckFunction should be a valid function');
+        }
+    });
+
+    it('ResumePauseIntervalMs exists with the ResumePauseCheckFunction should success', async () => {
+        let fullConfigurationWithPauseResume = JSON.parse(JSON.stringify(fullConfiguration));
+        fullConfigurationWithPauseResume.ResumePauseIntervalMs = 1000;
+        fullConfigurationWithPauseResume.ResumePauseCheckFunction = () => {
+            return Promise.resolve();
+        };
+        fullConfigurationWithPauseResume.MessageFunction = () => {
+            return Promise.resolve();
+        };
+        await kafkaConsumerManager.init(fullConfigurationWithPauseResume);
+    });
 });
 
 describe('Verify export functions', () => {
-
     let sandbox, consumer, resumeStub, pauseStub, validateOffsetsAreSyncedStub,
         closeConnectionStub, decreaseMessageInMemoryStub, kafkaConsumerManager;
 
@@ -106,11 +128,9 @@ describe('Verify export functions', () => {
 
     after(() => {
         sandbox.restore();
-
     });
 
     it('Verify methods going to the correct consumer', () => {
-
         kafkaConsumerManager.resume();
         should(resumeStub.calledOnce).eql(true);
 

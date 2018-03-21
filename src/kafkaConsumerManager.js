@@ -13,7 +13,6 @@ function init(configuration) {
         'KafkaOffsetDiffThreshold',
         'KafkaConnectionTimeout',
         'Topics',
-        'ResumePauseIntervalMs',
         'AutoCommit'
     ];
 
@@ -29,7 +28,9 @@ function init(configuration) {
         throw new Error('Missing mandatory environment variables: ' + missingFields);
     }
 
-    verifyParamIsFunction(configuration.ResumePauseCheckFunction, 'ResumePauseCheckFunction');
+    if (configuration.hasOwnProperty('ResumePauseIntervalMs')) {
+        verifyParamIsFunction(configuration.ResumePauseCheckFunction, 'ResumePauseCheckFunction');
+    }
     verifyParamIsFunction(configuration.MessageFunction, 'MessageFunction');
 
     chosenConsumer = configuration.AutoCommit === false ? kafkaStreamConsumer : kafkaConsumer;
