@@ -21,7 +21,7 @@ function init(config) {
         encoding: 'utf8',
         fetchMaxBytes: configuration.FetchMaxBytes || 1024 * 1024
     };
-    if (config.KafkaUrl) {
+    if (configuration.KafkaUrl) {
         options['kafkaHost'] = configuration.KafkaUrl;
     } else {
         options['host'] = configuration.ZookeeperUrl;
