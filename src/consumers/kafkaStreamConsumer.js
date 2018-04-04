@@ -14,6 +14,8 @@ function init(config) {
     throttlingCheckIntervalMs = config.ThrottlingCheckIntervalMs;
 
     let options = {
+        kafkaHost: configuration.KafkaUrl,
+        host: configuration.ZookeeperUrl,
         autoCommit: false,
         groupId: configuration.GroupId,
         sessionTimeout: 10000,
@@ -21,11 +23,7 @@ function init(config) {
         encoding: 'utf8',
         fetchMaxBytes: configuration.FetchMaxBytes || 1024 * 1024
     };
-    if (configuration.KafkaUrl) {
-        options['kafkaHost'] = configuration.KafkaUrl;
-    } else {
-        options['host'] = configuration.ZookeeperUrl;
-    }
+
     kafkaThrottlingManager.init(throttlingThreshold, throttlingCheckIntervalMs, configuration.Topics, configuration.MessageFunction, commit);
 
     consumer = new kafka.ConsumerGroupStream(options, configuration.Topics);

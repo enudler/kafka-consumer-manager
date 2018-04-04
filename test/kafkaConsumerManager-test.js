@@ -64,7 +64,7 @@ describe('Verify mandatory params', () => {
             });
             throw new Error('Should fail');
         } catch (err) {
-            err.message.should.eql('Missing mandatory environment variables: KafkaUrl,GroupId,KafkaOffsetDiffThreshold,KafkaConnectionTimeout,Topics,AutoCommit');
+            err.message.should.eql('Missing mandatory environment variables: GroupId,KafkaOffsetDiffThreshold,KafkaConnectionTimeout,Topics,AutoCommit,KafkaUrl');
         }
     });
 
