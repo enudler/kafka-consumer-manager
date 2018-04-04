@@ -8,7 +8,7 @@ let _ = require('lodash');
 
 function init(configuration) {
     let mandatoryVars = [
-        'KafkaUrl',
+        'KafkaUrl', // kafkaUrl have to be the first item.
         'GroupId',
         'KafkaOffsetDiffThreshold',
         'KafkaConnectionTimeout',
@@ -18,6 +18,13 @@ function init(configuration) {
 
     if (configuration.AutoCommit === false) {
         mandatoryVars.push('ThrottlingThreshold', 'ThrottlingCheckIntervalMs');
+        mandatoryVars.shift(); // remove 'kafkaUrl' from mandatoryVars
+        if (!configuration.hasOwnProperty('KafkaUrl') && !configuration.hasOwnProperty('ZookeeperUrl')) {
+            throw new Error('Missing mandatory environment variables. one of the following: [KafkaUrl, ZookeeperUrl] should exist');
+        }
+        if (configuration.hasOwnProperty('KafkaUrl') && configuration.hasOwnProperty('ZookeeperUrl')) {
+            throw new Error('Only one of the following: [KafkaUrl, ZookeeperUrl] should exist');
+        }
     }
 
     let missingFields = _.filter(mandatoryVars, (currVar) => {
