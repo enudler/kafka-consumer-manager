@@ -11,7 +11,8 @@ let kafka = require('kafka-node'),
 let sandbox, logErrorStub, logTraceStub, logInfoStub, consumerGroupStreamStub,
     consumerStreamStub, consumerEventHandlers, resumeStub, pauseStub, consumer,
     promiseActionSpy, baseConfiguration, handleIncomingMessageStub, commitStub, closeStub,
-    kafkaThrottlingManagerInitStub, consumerOffsetOutOfSyncCheckerInitStub, validateOffsetsAreSyncedStub, kafkaStreamConsumer;
+    kafkaThrottlingManagerInitStub, consumerOffsetOutOfSyncCheckerInitStub, validateOffsetsAreSyncedStub,
+    kafkaStreamConsumer;
 
 describe('Testing init method', function () {
     beforeEach(function () {
@@ -63,9 +64,9 @@ describe('Testing init method', function () {
                 'roundrobin'
             ],
             'sessionTimeout': 10000,
+            'host': undefined,
             'kafkaHost': 'KafkaUrl',
             'fetchMaxBytes': 128
-
         };
 
         should(consumerGroupStreamStub.args[0][1]).eql(['topic-a', 'topic-b']);
@@ -89,6 +90,7 @@ describe('Testing init method', function () {
             'autoCommit': false,
             'encoding': 'utf8',
             'groupId': 'GroupId',
+            'host': undefined,
             'protocol': [
                 'roundrobin'
             ],
