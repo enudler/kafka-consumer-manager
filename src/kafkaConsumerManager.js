@@ -25,7 +25,7 @@ function init(configuration) {
         }
     }
     else {
-        mandatoryVars.push('KafkaUrl');
+        mandatoryVars.push('KafkaUrl'); //  verified manually when AutoCommit === false, in this case can be verified in the filter.
     }
 
     let missingFields = _.filter(mandatoryVars, (currVar) => {
