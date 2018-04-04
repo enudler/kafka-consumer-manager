@@ -22,9 +22,9 @@ function init(config) {
         fetchMaxBytes: configuration.FetchMaxBytes || 1024 * 1024
     };
     if (config.KafkaUrl) {
-        options['kafkaHost'] = config.KafkaUrl;
+        options['kafkaHost'] = configuration.KafkaUrl;
     } else {
-        options['host'] = config.ZookeeperUrl;
+        options['host'] = configuration.ZookeeperUrl;
     }
     kafkaThrottlingManager.init(throttlingThreshold, throttlingCheckIntervalMs, configuration.Topics, configuration.MessageFunction, commit);
 
