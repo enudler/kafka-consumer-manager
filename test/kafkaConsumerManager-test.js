@@ -9,6 +9,7 @@ describe('Verify mandatory params', () => {
     let kafkaConsumerManager = rewire('../src/kafkaConsumerManager');
     let producer = require('../src/producers/kafkaProducer');
     let consumer = require('../src/consumers/kafkaConsumer');
+    let streamConsumer = require('../src/consumers/kafkaStreamConsumer');
     let healthChecker = require('../src/healthCheckers/dependencyChecker');
 
     let fullConfiguration = {
@@ -41,10 +42,12 @@ describe('Verify mandatory params', () => {
         sandbox = sinon.sandbox.create();
         let producerInitStub = sandbox.stub(producer, 'init');
         let consumerInitStub = sandbox.stub(consumer, 'init');
+        let streamConsumerInitStub = sandbox.stub(streamConsumer, 'init');
         let healthCheckerInitStub = sandbox.stub(healthChecker, 'init');
 
         producerInitStub.resolves();
         consumerInitStub.resolves();
+        streamConsumerInitStub.resolves();
         healthCheckerInitStub.resolves();
     });
 
