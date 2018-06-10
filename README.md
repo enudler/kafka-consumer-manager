@@ -37,7 +37,7 @@ let configuration = {
         ResumePauseCheckFunction: () => {
             return shouldPauseConsuming()
         },
-        MessageFunction: (msg) => { handleMessage(msg) },
+        MessageFunction: (msg) => { return handleMessage(msg) },
         MaxMessagesInMemory: 100,
         ResumeMaxMessagesRatio: 0.25
         
@@ -57,7 +57,7 @@ kafkaConsumerManager.init(configuration)
 * `KafkaOffsetDiffThreshold` &ndash; Tolerance for how far the partition offset of the consumer can be from the real offset, this value is used by the health check to reject in case the offset is out of sync.
 * `Topics` &ndash; Array of topics that should be consumed.
 * `ResumePauseIntervalMs` &ndash; Interval of when to run the ResumePauseCheckFunction (Optional).
-* `ResumePauseCheckFunction` &ndash; Promise that in case of return value is true, the consumer will be resumed, if false it will be paused (Optional).
+* `ResumePauseCheckFunction` &ndash; Promise that in case of return value is true, the consumer will be resumed, if false it will be paused (Mandatory if ResumePauseIntervalMs provided).
 * `MessageFunction` &ndash; Promise that applied to each consumed message, this function accepts one param (message), please make sure to resolve only after messages is considered as done.
 * `FetchMaxBytes` &ndash; The maximum bytes to include in the message set for this partition. This helps bound the size of the response. (Default 1024^2).
 * `WriteBackDelay` &ndash; Delay the produced messages by ms. (optional).
