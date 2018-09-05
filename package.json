@@ -28,7 +28,7 @@
     "bunyan": "1.8.12",
     "express": "^4.16.2",
     "istanbul": "1.0.0-alpha.2",
-    "kafka-node": "2.4.1",
+    "kafka-node": "2.6.1",
     "lodash": "^4.17.10",
     "request": "^2.83.0",
     "request-promise": "^4.2.2"
