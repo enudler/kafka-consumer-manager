@@ -1,7 +1,8 @@
 let kafka = require('kafka-node'),
     logger = require('../helpers/logger'),
     consumerOffsetOutOfSyncChecker = require('../healthCheckers/consumerOffsetOutOfSyncChecker'),
-    kafkaThrottlingManager = require('../throttling/kafkaThrottlingManager');
+    kafkaThrottlingManager = require('../throttling/kafkaThrottlingManager'),
+    _ = require('lodash');
 
 let configuration, consumer, shuttingDown, consumerEnabled, throttlingThreshold, throttlingCheckIntervalMs,
     isDependencyHealthy, isThirsty, commitEachMessage;
@@ -12,7 +13,7 @@ function init(config) {
     isThirsty = true;
     throttlingThreshold = config.ThrottlingThreshold;
     throttlingCheckIntervalMs = config.ThrottlingCheckIntervalMs;
-    commitEachMessage = configuration.commitEachMessage;
+    commitEachMessage = _.get(configuration, 'commitEachMessage', true);
 
     let options = {
         kafkaHost: configuration.KafkaUrl,

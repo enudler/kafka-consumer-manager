@@ -64,7 +64,8 @@ describe('Testing init method', function () {
             ],
             'sessionTimeout': 10000,
             'kafkaHost': 'KafkaUrl',
-            'fetchMaxBytes': 128
+            'fetchMaxBytes': 128,
+            "autoCommitIntervalMs": 5000
 
         };
 
@@ -94,7 +95,8 @@ describe('Testing init method', function () {
             ],
             'sessionTimeout': 10000,
             'kafkaHost': 'KafkaUrl',
-            'fetchMaxBytes': 1048576
+            'fetchMaxBytes': 1048576,
+            "autoCommitIntervalMs": 5000
 
         };
 
