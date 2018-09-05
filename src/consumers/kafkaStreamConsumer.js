@@ -15,6 +15,7 @@ function init(config) {
 
     let options = {
         kafkaHost: configuration.KafkaUrl,
+        host: configuration.ZookeeperUrl,
         autoCommit: false,
         groupId: configuration.GroupId,
         sessionTimeout: 10000,
