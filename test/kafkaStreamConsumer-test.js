@@ -11,7 +11,8 @@ let kafka = require('kafka-node'),
 let sandbox, logErrorStub, logTraceStub, logInfoStub, consumerGroupStreamStub,
     consumerStreamStub, consumerEventHandlers, resumeStub, pauseStub, consumer,
     promiseActionSpy, baseConfiguration, handleIncomingMessageStub, commitStub, closeStub,
-    kafkaThrottlingManagerInitStub, consumerOffsetOutOfSyncCheckerInitStub, validateOffsetsAreSyncedStub, kafkaStreamConsumer;
+    kafkaThrottlingManagerInitStub, consumerOffsetOutOfSyncCheckerInitStub,
+    validateOffsetsAreSyncedStub, kafkaStreamConsumer;
 
 describe('Testing init method', function () {
     beforeEach(function () {
@@ -46,13 +47,26 @@ describe('Testing init method', function () {
             MessageFunction: promiseActionSpy,
             FetchMaxBytes: 128
         };
+
     });
     afterEach(function () {
         sandbox.restore();
     });
 
     it('testing right configuration was called, full configuration', function () {
-        consumer.init(baseConfiguration);
+        let  commitEachMsgConfiguration = {
+            KafkaUrl: 'KafkaUrl',
+            GroupId: 'GroupId',
+            ThrottlingThreshold: 1000,
+            ThrottlingCheckIntervalMs: 10000,
+            Topics: ['topic-a', 'topic-b'],
+            MessageFunction: promiseActionSpy,
+            FetchMaxBytes: 128,
+            commitEachMessage: false,
+            autoCommitIntervalMs: 7000
+        };
+
+        consumer.init(commitEachMsgConfiguration);
         consumerGroupStreamStub.returns(consumerStreamStub);
 
         let optionsExpected = {
@@ -65,8 +79,7 @@ describe('Testing init method', function () {
             'sessionTimeout': 10000,
             'kafkaHost': 'KafkaUrl',
             'fetchMaxBytes': 128,
-            "autoCommitIntervalMs": 5000
-
+            'autoCommitIntervalMs': 7000
         };
 
         should(consumerGroupStreamStub.args[0][1]).eql(['topic-a', 'topic-b']);
@@ -221,7 +234,7 @@ describe('Testing commit, pause and resume  methods', function () {
         sinon.assert.calledOnce(resumeStub);
     });
 
-    it('testing commit methods', function () {
+    it('testing commit methods - commitEachMessage is true', function () {
         let msg = {
             value: 'some_value',
             partition: 123,
@@ -234,6 +247,33 @@ describe('Testing commit, pause and resume  methods', function () {
         sinon.assert.calledOnce(commitStub);
         sinon.assert.calledWithExactly(commitStub, msg, true);
     });
+
+    it('testing commit methods - commitEachMessage is false', function () {
+        let  commitEachMsgConfiguration = {
+            KafkaUrl: 'KafkaUrl',
+            GroupId: 'GroupId',
+            ThrottlingThreshold: 1000,
+            ThrottlingCheckIntervalMs: 10000,
+            Topics: ['topic-a', 'topic-b'],
+            MessageFunction: promiseActionSpy,
+            FetchMaxBytes: 128,
+            commitEachMessage: false,
+            autoCommitIntervalMs: 7000
+        };
+
+        let msg = {
+            value: 'some_value',
+            partition: 123,
+            offset: 5,
+            topic: 'my_topic'
+        };
+        consumer.init(commitEachMsgConfiguration);
+        consumerGroupStreamStub.returns(consumerStreamStub);
+        consumer.commit(msg);
+        sinon.assert.calledOnce(commitStub);
+        sinon.assert.calledWithExactly(commitStub, msg, false);
+    });
+
 });
 
 describe('testing validateOffsetsAreSynced methods', function () {
