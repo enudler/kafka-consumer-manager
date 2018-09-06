@@ -72,6 +72,9 @@ kafkaConsumerManager.init(configuration)
 
 * `ThrottlingThreshold` &ndash; If the consumer will have more messages than this value it will pause, it will resume consuming once the value is below that given threshold`.
 * `ThrottlingCheckIntervalMs` &ndash; The interval in ms of when to check if messages are above or below the threshold`.
+* `CommitEachMessage` &ndash; Boolean, If CommitEachMessage is false the commit will be each AutoCommitIntervalMs.(Default true)
+* `AutoCommitIntervalMs` &ndash; The interval in ms to make commit to the broker, relevant only if CommitEachMessage is false.(Default 5000)
+
 
 ### kafka-consumer-manager.init(configuration)
 

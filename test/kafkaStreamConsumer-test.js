@@ -62,8 +62,8 @@ describe('Testing init method', function () {
             Topics: ['topic-a', 'topic-b'],
             MessageFunction: promiseActionSpy,
             FetchMaxBytes: 128,
-            commitEachMessage: false,
-            autoCommitIntervalMs: 7000
+            CommitEachMessage: false,
+            AutoCommitIntervalMs: 7000
         };
 
         consumer.init(commitEachMsgConfiguration);
@@ -234,7 +234,7 @@ describe('Testing commit, pause and resume  methods', function () {
         sinon.assert.calledOnce(resumeStub);
     });
 
-    it('testing commit methods - commitEachMessage is true', function () {
+    it('testing commit methods - CommitEachMessage is true', function () {
         let msg = {
             value: 'some_value',
             partition: 123,
@@ -248,7 +248,7 @@ describe('Testing commit, pause and resume  methods', function () {
         sinon.assert.calledWithExactly(commitStub, msg, true);
     });
 
-    it('testing commit methods - commitEachMessage is false', function () {
+    it('testing commit methods - CommitEachMessage is false', function () {
         let  commitEachMsgConfiguration = {
             KafkaUrl: 'KafkaUrl',
             GroupId: 'GroupId',
@@ -257,8 +257,8 @@ describe('Testing commit, pause and resume  methods', function () {
             Topics: ['topic-a', 'topic-b'],
             MessageFunction: promiseActionSpy,
             FetchMaxBytes: 128,
-            commitEachMessage: false,
-            autoCommitIntervalMs: 7000
+            CommitEachMessage: false,
+            AutoCommitIntervalMs: 7000
         };
 
         let msg = {

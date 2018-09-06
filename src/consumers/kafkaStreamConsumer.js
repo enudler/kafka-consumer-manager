@@ -13,7 +13,7 @@ function init(config) {
     isThirsty = true;
     throttlingThreshold = config.ThrottlingThreshold;
     throttlingCheckIntervalMs = config.ThrottlingCheckIntervalMs;
-    commitEachMessage = _.get(configuration, 'commitEachMessage', true);
+    commitEachMessage = _.get(configuration, 'CommitEachMessage', true);
 
     let options = {
         kafkaHost: configuration.KafkaUrl,
@@ -23,7 +23,7 @@ function init(config) {
         protocol: ['roundrobin'],
         encoding: 'utf8',
         fetchMaxBytes: configuration.FetchMaxBytes || 1024 * 1024,
-        autoCommitIntervalMs: configuration.autoCommitIntervalMs || 5000
+        autoCommitIntervalMs: configuration.AutoCommitIntervalMs || 5000
     };
 
     kafkaThrottlingManager.init(throttlingThreshold, throttlingCheckIntervalMs, configuration.Topics, configuration.MessageFunction, commit);
