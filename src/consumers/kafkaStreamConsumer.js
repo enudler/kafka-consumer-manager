@@ -1,10 +1,11 @@
 let kafka = require('kafka-node'),
     logger = require('../helpers/logger'),
     consumerOffsetOutOfSyncChecker = require('../healthCheckers/consumerOffsetOutOfSyncChecker'),
-    kafkaThrottlingManager = require('../throttling/kafkaThrottlingManager');
+    kafkaThrottlingManager = require('../throttling/kafkaThrottlingManager'),
+    _ = require('lodash');
 
 let configuration, consumer, shuttingDown, consumerEnabled, throttlingThreshold, throttlingCheckIntervalMs,
-    isDependencyHealthy, isThirsty;
+    isDependencyHealthy, isThirsty, commitEachMessage;
 
 function init(config) {
     configuration = config;
@@ -12,6 +13,7 @@ function init(config) {
     isThirsty = true;
     throttlingThreshold = config.ThrottlingThreshold;
     throttlingCheckIntervalMs = config.ThrottlingCheckIntervalMs;
+    commitEachMessage = _.get(configuration, 'CommitEachMessage', true);
 
     let options = {
         kafkaHost: configuration.KafkaUrl,
@@ -20,7 +22,8 @@ function init(config) {
         sessionTimeout: 10000,
         protocol: ['roundrobin'],
         encoding: 'utf8',
-        fetchMaxBytes: configuration.FetchMaxBytes || 1024 * 1024
+        fetchMaxBytes: configuration.FetchMaxBytes || 1024 * 1024,
+        autoCommitIntervalMs: configuration.AutoCommitIntervalMs || 5000
     };
 
     kafkaThrottlingManager.init(throttlingThreshold, throttlingCheckIntervalMs, configuration.Topics, configuration.MessageFunction, commit);
@@ -53,7 +56,7 @@ function validateOffsetsAreSynced() {
 }
 
 function commit(message) {
-    consumer.commit(message, true);
+    consumer.commit(message, commitEachMessage);
 }
 
 function closeConnection() {
