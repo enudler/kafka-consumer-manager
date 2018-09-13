@@ -39,6 +39,7 @@ function handleIncomingMessage(message) {
     innerQueues[topic][partition].push(message, () => {
         commitFunction(message);
     });
+
 }
 
 function getQueueLengthsByTopic() {

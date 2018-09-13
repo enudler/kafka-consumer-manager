@@ -5,7 +5,7 @@ let kafka = require('kafka-node'),
     _ = require('lodash');
 
 let configuration, consumer, shuttingDown, consumerEnabled, throttlingThreshold, throttlingCheckIntervalMs,
-    isDependencyHealthy, isThirsty, commitEachMessage;
+    isDependencyHealthy, isThirsty, commitEachMessage, lastMessage;
 
 function init(config) {
     configuration = config;
@@ -33,6 +33,7 @@ function init(config) {
     consumerEnabled = true;
 
     consumer.on('data', (message) => {
+        lastMessage = message;
         logger.trace(`consumerGroupStream got message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
         kafkaThrottlingManager.handleIncomingMessage(message);
     });
@@ -103,6 +104,10 @@ function decreaseMessageInMemory() {
     logger.warn('Not supported for autoCommit: false');
 }
 
+function getLastMessage(){
+    return _.cloneDeep(lastMessage);
+}
+
 module.exports = {
     init,
     pause,
@@ -112,5 +117,6 @@ module.exports = {
     validateOffsetsAreSynced,
     decreaseMessageInMemory,
     setDependencyHealthy,
-    setThirsty
+    setThirsty,
+    getLastMessage
 };
