@@ -9,7 +9,7 @@ function init(consumer, config) {
     }
     configuration = config;
     intervalId = setInterval(() => {
-        configuration.ResumePauseCheckFunction()
+        configuration.ResumePauseCheckFunction(consumer)
             .then((shouldResume) => {
                 if (shouldResume) {
                     logger.info('ran ResumePauseCheckFunction and got should resume. will try to resume consumer if it was stopped');

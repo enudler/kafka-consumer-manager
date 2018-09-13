@@ -85,7 +85,6 @@ describe('Testing init method', function () {
         should(consumerGroupStreamStub.args[0][1]).eql(['topic-a', 'topic-b']);
         should(consumerGroupStreamStub.args[0][0]).eql(optionsExpected);
     });
-
     it('testing right configuration was called, only mandatory configuration', function () {
         let baseConfiguration = {
             KafkaUrl: 'KafkaUrl',
@@ -128,6 +127,7 @@ describe('Testing init method', function () {
         };
         consumerEventHandlers.data(msg);
         setTimeout(function () {
+            should(consumer.getLastMessage()).deepEqual(msg);
             sinon.assert.calledOnce(logTraceStub);
             sinon.assert.calledWithExactly(logTraceStub, 'consumerGroupStream got message: topic: my_topic, partition: 123, offset: 5');
             sinon.assert.calledOnce(handleIncomingMessageStub);

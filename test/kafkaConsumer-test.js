@@ -104,6 +104,7 @@ describe('Testing kafka consumer component', function () {
 
             consumerEventHandlers.message(msg);
             setTimeout(function () {
+                should(consumer.getLastMessage()).deepEqual(msg);
                 should(actionSpy.calledOnce).eql(true);
                 should(actionSpy.args.length).eql(1);
                 should(actionSpy.args[0][0]).eql(msg);
