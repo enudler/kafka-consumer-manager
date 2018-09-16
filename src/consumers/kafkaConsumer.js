@@ -4,7 +4,7 @@ let kafka = require('kafka-node'),
     _ = require('lodash');
 
 let configuration, consumer, shuttingDown,
-    consumerEnabled, successPromise, timeOutPromise, alreadyConnected, isDependencyHealthy, isThirsty,lastMessage;
+    consumerEnabled, successPromise, timeOutPromise, alreadyConnected, isDependencyHealthy, isThirsty, lastMessage;
 
 let messagesInMemory = 0;
 
