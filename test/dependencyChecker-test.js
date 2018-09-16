@@ -41,7 +41,8 @@ describe('Testing health checker', function () {
 
     it('Testing health checker is up - one time check', (done) => {
         let configuration = {
-            ResumePauseCheckFunction: () => {
+            ResumePauseCheckFunction: (innerConsumer) => {
+                should(consumer).eql(innerConsumer);
                 return Promise.resolve(true);
             },
             ResumePauseIntervalMs: 50

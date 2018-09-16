@@ -1,8 +1,10 @@
 let kafka = require('kafka-node'),
     logger = require('../helpers/logger'),
-    consumerOffsetOutOfSyncChecker = require('../healthCheckers/consumerOffsetOutOfSyncChecker');
+    consumerOffsetOutOfSyncChecker = require('../healthCheckers/consumerOffsetOutOfSyncChecker'),
+    _ = require('lodash');
+
 let configuration, consumer, shuttingDown,
-    consumerEnabled, successPromise, timeOutPromise, alreadyConnected, isDependencyHealthy, isThirsty;
+    consumerEnabled, successPromise, timeOutPromise, alreadyConnected, isDependencyHealthy, isThirsty, lastMessage;
 
 let messagesInMemory = 0;
 
@@ -25,6 +27,7 @@ function init(config) {
 
         consumer = new kafka.ConsumerGroup(options, configuration.Topics);
         consumer.on('message', (message) => {
+            lastMessage = message;
             increaseMessageInMemory();
             configuration.MessageFunction(message);
         });
@@ -132,6 +135,10 @@ function decreaseMessageInMemory() {
     }
 }
 
+function getLastMessage(){
+    return _.cloneDeep(lastMessage);
+}
+
 module.exports = {
     init: init,
     validateOffsetsAreSynced,
@@ -140,5 +147,6 @@ module.exports = {
     closeConnection,
     decreaseMessageInMemory,
     setDependencyHealthy,
-    setThirsty
+    setThirsty,
+    getLastMessage
 };

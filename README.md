@@ -34,8 +34,8 @@ let configuration = {
         KafkaOffsetDiffThreshold: 3,
         Topics: ["TOPIC-A", "TOPIC-B"],
         ResumePauseIntervalMs: 30000,
-        ResumePauseCheckFunction: () => {
-            return shouldPauseConsuming()
+        ResumePauseCheckFunction: (consumer) => {
+            return shouldPauseConsuming(consumer)
         },
         MessageFunction: (msg) => { return handleMessage(msg) },
         MaxMessagesInMemory: 100,
@@ -57,7 +57,7 @@ kafkaConsumerManager.init(configuration)
 * `KafkaOffsetDiffThreshold` &ndash; Tolerance for how far the partition offset of the consumer can be from the real offset, this value is used by the health check to reject in case the offset is out of sync.
 * `Topics` &ndash; Array of topics that should be consumed.
 * `ResumePauseIntervalMs` &ndash; Interval of when to run the ResumePauseCheckFunction (Optional).
-* `ResumePauseCheckFunction` &ndash; Promise that in case of return value is true, the consumer will be resumed, if false it will be paused (Mandatory if ResumePauseIntervalMs provided).
+* `ResumePauseCheckFunction` &ndash; Promise that in case of return value is true, the consumer will be resumed, if false it will be paused (Mandatory if ResumePauseIntervalMs provided). this function accepts one param (consumer).
 * `MessageFunction` &ndash; Promise that applied to each consumed message, this function accepts one param (message), please make sure to resolve only after messages is considered as done.
 * `FetchMaxBytes` &ndash; The maximum bytes to include in the message set for this partition. This helps bound the size of the response. (Default 1024^2).
 * `WriteBackDelay` &ndash; Delay the produced messages by ms. (optional).
@@ -72,6 +72,8 @@ kafkaConsumerManager.init(configuration)
 
 * `ThrottlingThreshold` &ndash; If the consumer will have more messages than this value it will pause, it will resume consuming once the value is below that given threshold`.
 * `ThrottlingCheckIntervalMs` &ndash; The interval in ms of when to check if messages are above or below the threshold`.
+* `CommitEachMessage` &ndash; Boolean, If CommitEachMessage is false the commit will be each AutoCommitIntervalMs.(Default true)
+* `AutoCommitIntervalMs` &ndash; The interval in ms to make commit to the broker, relevant only if CommitEachMessage is false.(Default 5000)
 
 ### kafka-consumer-manager.init(configuration)
 
@@ -105,6 +107,10 @@ Send a message back to a topic. returns a promise.
 
 Decrease the counter of how many messages currently processed in the service, used with combine of the env params: ResumeMaxMessagesRatio and MaxMessagesInMemory
 Only relevant for autoCommit: true
+
+### kafka-consumer-manager.getLastMessage()
+
+Get the last message that the consumer received
 
 ## Running Tests
 Using mocha and istanbul 

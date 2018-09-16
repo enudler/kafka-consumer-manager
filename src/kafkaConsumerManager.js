@@ -55,5 +55,7 @@ module.exports = {
     resume: () => chosenConsumer.resume(),
     closeConnection: () => chosenConsumer.closeConnection(),
     finishedHandlingMessage: () => chosenConsumer.decreaseMessageInMemory(),
-    send: producer.send
+    send: producer.send,
+    getLastMessage: chosenConsumer.getLastMessage
+
 };
