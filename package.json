@@ -13,6 +13,9 @@
     "type": "git",
     "url": "https://github.com/enudler/kafka-consumer-manager"
   },
+  "publishConfig": {
+    "registry": "http://npm.zooz.co:8083/"
+  },
   "keywords": [
     "kafka",
     "consumer",
