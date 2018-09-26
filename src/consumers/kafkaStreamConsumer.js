@@ -1,122 +1,133 @@
 let kafka = require('kafka-node'),
     logger = require('../helpers/logger'),
-    consumerOffsetOutOfSyncChecker = require('../healthCheckers/consumerOffsetOutOfSyncChecker'),
-    kafkaThrottlingManager = require('../throttling/kafkaThrottlingManager'),
+    ConsumerOffsetOutOfSyncChecker = require('../healthCheckers/consumerOffsetOutOfSyncChecker'),
+    KafkaThrottlingManager = require('../throttling/kafkaThrottlingManager'),
     _ = require('lodash');
 
-let configuration, consumer, shuttingDown, consumerEnabled, throttlingThreshold, throttlingCheckIntervalMs,
-    isDependencyHealthy, isThirsty, commitEachMessage, lastMessage;
+module.exports = class KafkaStreamConsumer {
+    init(config){
+        return new Promise((resolve, reject) => {
+            let {KafkaUrl, GroupId, Topics, MessageFunction, FetchMaxBytes,
+                AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000} = config;
 
-function init(config) {
-    configuration = config;
-    isDependencyHealthy = true;
-    isThirsty = true;
-    throttlingThreshold = config.ThrottlingThreshold;
-    throttlingCheckIntervalMs = config.ThrottlingCheckIntervalMs;
-    commitEachMessage = _.get(configuration, 'CommitEachMessage', true);
+            let options = {
+                kafkaHost: KafkaUrl,
+                autoCommit: false,
+                groupId: GroupId,
+                sessionTimeout: 10000,
+                protocol: ['roundrobin'],
+                encoding: 'utf8',
+                fetchMaxBytes: FetchMaxBytes || 1024 * 1024,
+                autoCommitIntervalMs: AutoCommitIntervalMs || 5000
+            };
 
-    let options = {
-        kafkaHost: configuration.KafkaUrl,
-        autoCommit: false,
-        groupId: configuration.GroupId,
-        sessionTimeout: 10000,
-        protocol: ['roundrobin'],
-        encoding: 'utf8',
-        fetchMaxBytes: configuration.FetchMaxBytes || 1024 * 1024,
-        autoCommitIntervalMs: configuration.AutoCommitIntervalMs || 5000
-    };
-
-    kafkaThrottlingManager.init(throttlingThreshold, throttlingCheckIntervalMs, configuration.Topics, configuration.MessageFunction, commit);
-
-    consumer = new kafka.ConsumerGroupStream(options, configuration.Topics);
-    consumerOffsetOutOfSyncChecker.init(consumer.consumerGroup, config);
-    consumerEnabled = true;
-
-    consumer.on('data', (message) => {
-        lastMessage = message;
-        logger.trace(`consumerGroupStream got message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
-        kafkaThrottlingManager.handleIncomingMessage(message);
-    });
-
-    consumer.on('error', (err) => {
-        logger.error(err, 'Kafka Error');
-    });
-
-    consumer.on('close', () => {
-        logger.info('Inner ConsumerGroupStream closed');
-    });
-    return Promise.resolve();
-}
-
-function validateOffsetsAreSynced() {
-    if (!consumerEnabled) {
-        logger.info('Monitor Offset: Skipping check as the consumer is paused');
-        return Promise.resolve();
-    }
-    return consumerOffsetOutOfSyncChecker.validateOffsetsAreSynced();
-}
-
-function commit(message) {
-    consumer.commit(message, commitEachMessage);
-}
-
-function closeConnection() {
-    shuttingDown = true;
-    logger.info('Consumer is closing connection');
-    consumer.close(function (err) {
-        if (err) {
-            logger.error('Error when trying to close connection with kafka', {
-                errorMessage: err.message
+            let consumer = new kafka.ConsumerGroupStream(options, Topics);
+            Object.assign(this, {
+                configuration: config,
+                isDependencyHealthy: true,
+                isThirsty: true,
+                commitEachMessage: _.get(config, 'CommitEachMessage', true),
+                consumerEnabled: true,
+                consumer: consumer
             });
+
+            this.consumer.on('data', function(message){
+                this.lastMessage = message;
+                logger.trace(`consumerGroupStream got message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
+                this.kafkaThrottlingManager.handleIncomingMessage(message);
+            }.bind(this));
+
+            this.consumer.on('error', (err) => {
+                logger.error(err, 'Kafka Error');
+            });
+
+            this.consumer.on('close', () => {
+                logger.info('Inner ConsumerGroupStream closed');
+            });
+
+            this.consumer.on('connect', function(err){
+                if (err) {
+                    reject(err);
+                } else {
+                    logger.info('Kafka client is ready');
+                    logger.info('topicPayloads', this.consumer.consumerGroup.topicPayloads);
+                    this.kafkaThrottlingManager = new KafkaThrottlingManager();
+                    this.kafkaThrottlingManager.init(ThrottlingThreshold, ThrottlingCheckIntervalMs,
+                        Topics, MessageFunction, this);
+                    this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker(this.consumer.consumerGroup,
+                        config.KafkaOffsetDiffThreshold);
+                    return resolve();
+                }
+            }.bind(this));
+
+            setTimeout(function() {
+                return reject(new Error(`Failed to connect to kafka after ${KafkaConnectionTimeout} ms.`));
+            }, KafkaConnectionTimeout);
+        });
+    }
+
+    pause() {
+        if (this.consumerEnabled) {
+            logger.info('Suspending Kafka consumption');
+            this.consumerEnabled = false;
+            this.consumer.pause();
         }
-    });
-}
-
-function pause() {
-    if (consumerEnabled) {
-        logger.info('Suspending Kafka consumption');
-        consumerEnabled = false;
-        consumer.pause();
     }
-}
 
-function resume() {
-    if (!isDependencyHealthy) {
-        logger.info('Not resuming consumption because dependency check returned false');
-    } else if (!isThirsty) {
-        logger.info('Not resuming consumption because too many messages in memory');
-    } else if (!shuttingDown && !consumerEnabled) {
-        logger.info('Resuming Kafka consumption');
-        consumerEnabled = true;
-        consumer.resume();
+    resume() {
+        if (!this.isDependencyHealthy) {
+            logger.info('Not resuming consumption because dependency check returned false');
+        } else if (!this.isThirsty) {
+            logger.info('Not resuming consumption because too many messages in memory');
+        } else if (!this.shuttingDown && !this.consumerEnabled) {
+            logger.info('Resuming Kafka consumption');
+            this.consumerEnabled = true;
+            this.consumer.resume();
+        }
     }
-}
 
-function setDependencyHealthy(value) {
-    isDependencyHealthy = value;
-}
+    closeConnection() {
+        this.shuttingDown = true;
+        logger.info('Consumer is closing connection');
+        return new Promise((resolve, reject) => {
+            this.consumer.close(function (err) {
+                if (err) {
+                    // logger.error('Error when trying to close connection with kafka', {
+                    //     errorMessage: err.message
+                    // });
+                    return reject(err);
+                } else {
+                    return resolve();
+                }
+            });
+        });
+    }
 
-function setThirsty(value) {
-    isThirsty = value;
-}
+    validateOffsetsAreSynced() {
+        if (!this.consumerEnabled) {
+            logger.info('Monitor Offset: Skipping check as the consumer is paused');
+            return Promise.resolve();
+        }
+        return this.consumerOffsetOutOfSyncChecker.validateOffsetsAreSynced();
+    }
 
-function decreaseMessageInMemory() {
-    logger.warn('Not supported for autoCommit: false');
-}
+    decreaseMessageInMemory() {
+        logger.warn('Not supported for autoCommit: false');
+    }
 
-function getLastMessage(){
-    return _.cloneDeep(lastMessage);
-}
+    setDependencyHealthy(value) {
+        this.isDependencyHealthy = value;
+    }
 
-module.exports = {
-    init,
-    pause,
-    resume,
-    closeConnection,
-    commit,
-    validateOffsetsAreSynced,
-    decreaseMessageInMemory,
-    setDependencyHealthy,
-    setThirsty,
-    getLastMessage
+    setThirsty(value) {
+        this.isThirsty = value;
+    }
+
+    getLastMessage(){
+        return _.cloneDeep(this.lastMessage);
+    }
+
+    commit(message) {
+        this.consumer.commit(message, this.commitEachMessage);
+    }
 };

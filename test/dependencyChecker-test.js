@@ -1,12 +1,13 @@
 'use strict';
 
 let sinon = require('sinon'),
-    should = require('should');
+    should = require('should'),
+    DependencyChecker = require('../src/healthCheckers/dependencyChecker'),
+    KafkaConsumer = require('../src/consumers/kafkaConsumer');
 
 describe('Testing health checker', function () {
-    let sandbox, consumerPauseStub, consumerResumeStub;
-    let consumer = require('../src/consumers/kafkaConsumer');
-    let healthChecker = require('../src/healthCheckers/dependencyChecker');
+    let sandbox, consumerPauseStub, consumerResumeStub, healthChecker;
+    let consumer = new KafkaConsumer();
 
     before(() => {
         sandbox = sinon.sandbox.create();
@@ -31,8 +32,8 @@ describe('Testing health checker', function () {
         let configuration = {
         };
 
+        healthChecker = new DependencyChecker();
         healthChecker.init(consumer, configuration);
-
         setTimeout(() => {
             should(consumerResumeStub.called).eql(false);
             done();
@@ -48,8 +49,8 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
+        healthChecker = new DependencyChecker();
         healthChecker.init(consumer, configuration);
-
         setTimeout(() => {
             should(consumerResumeStub.calledOnce).eql(true);
             done();
@@ -64,6 +65,7 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
+        healthChecker = new DependencyChecker();
         healthChecker.init(consumer, configuration);
 
         setTimeout(() => {
@@ -80,6 +82,7 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
+        healthChecker = new DependencyChecker();
         healthChecker.init(consumer, configuration);
 
         setTimeout(() => {
@@ -96,6 +99,7 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
+        healthChecker = new DependencyChecker();
         healthChecker.init(consumer, configuration);
 
         setTimeout(() => {
@@ -113,6 +117,7 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
+        healthChecker = new DependencyChecker();
         healthChecker.init(consumer, configuration);
 
         setTimeout(() => {

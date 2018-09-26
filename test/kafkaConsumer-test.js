@@ -2,11 +2,12 @@
 
 let kafka = require('kafka-node'),
     sinon = require('sinon'),
-    rewire = require('rewire'),
     _ = require('lodash'),
     logger = require('../src/helpers/logger'),
     should = require('should'),
-    consumerOffsetOutOfSyncChecker = require('../src/healthCheckers/consumerOffsetOutOfSyncChecker');
+    KafkaConsumer = require('../src/consumers/kafkaConsumer'),
+    assert = require('assert'),
+    ConsumerOffsetOutOfSyncChecker = require('../src/healthCheckers/consumerOffsetOutOfSyncChecker');
 
 let sandbox, consumer,
     consumerGroupStub,
@@ -35,10 +36,17 @@ describe('Testing kafka consumer component', function () {
                 cb(err);
             },
             pause: pauseStub,
-            resume: resumeStub
+            resume: resumeStub,
+            topicPayloads: [{
+                'topic': 'events_topic',
+                'partition': 0,
+                'offset': 88,
+                'maxBytes': 1048576,
+                'metadata': 'm'
+            }]
         };
 
-        consumerGroupStub = sandbox.stub(kafka, 'ConsumerGroup').returns(consumerStub);
+        consumerGroupStub = sandbox.stub(kafka, 'ConsumerGroup');
 
         fetchStub = sandbox.stub();
 
@@ -46,14 +54,16 @@ describe('Testing kafka consumer component', function () {
             fetch: fetchStub
         };
         offsetStub = sandbox.stub(kafka, 'Offset').returns(offsetStub);
+    });
 
-        consumer = rewire('../src/consumers/kafkaConsumer');
+    beforeEach(async () => {
+        consumerGroupStub.returns(consumerStub);
 
         actionSpy = sinon.spy();
         let configuration = {
             KafkaUrl: 'KafkaUrl',
             GroupId: 'GroupId',
-            KafkaConnectionTimeout: 1000,
+            KafkaConnectionTimeout: 2000,
             Topics: ['topic-a', 'topic-b'],
             KafkaOffsetDiffThreshold: 3,
             MessageFunction: actionSpy,
@@ -61,17 +71,23 @@ describe('Testing kafka consumer component', function () {
             ResumeMaxMessagesRatio: 0.25
         };
 
-        consumer.init(configuration);
+        consumer = new KafkaConsumer();
+
+        setTimeout(() => {
+            consumerEventHandlers.connect();
+        }, 100);
+        await consumer.init(configuration);
     });
 
-    after(function () {
+    afterEach(function () {
+        sandbox.reset();
+    });
+
+    after(() => {
         sandbox.restore();
     });
-    describe('Testing init method', function () {
-        afterEach(function () {
-            sandbox.resetHistory();
-        });
 
+    describe('Testing init method', function () {
         it('Validation consumerGroup Options,topic', function () {
             consumerGroupStub.returns(consumerStub);
 
@@ -85,7 +101,6 @@ describe('Testing kafka consumer component', function () {
                 'sessionTimeout': 10000,
                 'kafkaHost': 'KafkaUrl',
                 'fetchMaxBytes': 1048576
-
             };
 
             should(consumerGroupStub.args[0][1]).eql(['topic-a', 'topic-b']);
@@ -130,7 +145,7 @@ describe('Testing kafka consumer component', function () {
 
         it('Testing consumer connect event', function (done) {
             consumerStub.topicPayloads = [{}];
-            consumerEventHandlers.connect('connect test');
+            consumerEventHandlers.connect();
             setTimeout(function () {
                 should(logInfoStub.args[0]).eql(['Kafka client is ready']);
                 done();
@@ -139,8 +154,8 @@ describe('Testing kafka consumer component', function () {
 
         it('Testing pause function handling', function () {
             consumer.pause();
-            should(consumer.__get__('consumerEnabled')).eql(false);
-            should(logInfoStub.args[0]).eql(['Suspending Kafka consumption']);
+            should(consumer.consumerEnabled).eql(false);
+            should(logInfoStub.args[2]).eql(['Suspending Kafka consumption']);
             should(pauseStub.calledOnce).eql(true);
         });
 
@@ -148,7 +163,7 @@ describe('Testing kafka consumer component', function () {
             consumer.setThirsty(false);
             consumer.setDependencyHealthy(true);
             consumer.resume();
-            should(logInfoStub.args[0][0]).eql('Not resuming consumption because too many messages in memory');
+            should(logInfoStub.args[2][0]).eql('Not resuming consumption because too many messages in memory');
             should(resumeStub.calledOnce).eql(false);
         });
 
@@ -156,67 +171,62 @@ describe('Testing kafka consumer component', function () {
             consumer.setThirsty(true);
             consumer.setDependencyHealthy(false);
             consumer.resume();
-            should(logInfoStub.args[0][0]).eql('Not resuming consumption because dependency check returned false');
+            should(logInfoStub.args[2][0]).eql('Not resuming consumption because dependency check returned false');
             should(resumeStub.calledOnce).eql(false);
         });
 
         it('Testing resume function handling', function () {
             consumer.setThirsty(true);
             consumer.setDependencyHealthy(true);
-            consumer.__set__('consumerEnabled', false);
-            consumer.__set__('shuttingDown', false);
+            consumer.consumerEnabled = false;
+            consumer.shuttingDown = false;
             consumer.resume();
-            should(consumer.__get__('consumerEnabled')).eql(true);
-            should(logInfoStub.args[0]).eql(['Resuming Kafka consumption']);
+            should(consumer.consumerEnabled).eql(true);
+            should(logInfoStub.args[2]).eql(['Resuming Kafka consumption']);
             should(resumeStub.calledOnce).eql(true);
         });
     });
 
     describe('Testing closeConnection method', function () {
-        afterEach(function () {
-            sandbox.resetHistory();
-        });
-        it('should write to info log and close consumer cause there is no error', function () {
-            consumer.closeConnection();
+        it('should write to info log and close consumer cause there is no error', async function () {
+            consumer.close = (cb) => { cb() };
+            await consumer.closeConnection();
             should(closeStub.called).eql(true);
-            should(logInfoStub.args[0][0]).eql('Consumer is closing connection');
+            should(logInfoStub.args[2][0]).eql('Consumer is closing connection');
         });
-        it('should write to error log and close consumer', function () {
+        it('should write to error log and close consumer', async function () {
+            let err = new Error('close was failing');
+            consumer.close = (cb) => { cb(_.cloneDeep(err)) };
             closeStub.returns('err');
-            consumer.closeConnection();
-            should(closeStub.called).eql(true);
-            should(logErrorStub.args[0][0]).eql('Error when trying to close connection with kafka');
+            try {
+                consumer.closeConnection();
+                assert.fail('close connection need to fail');
+            } catch (err){
+                should(err).eql(err);
+            }
+            // should(closeStub.called).eql(true);
+            //                should(logErrorStub.args[0][0]).eql('Error when trying to close connection with kafka');
         });
     });
 
     describe('Testing Max messages in memory', function () {
-        before(function () {
-            sandbox.reset();
-            consumer.__set__('messagesInMemory', 0);
-            consumer.__set__('consumerEnabled', true);
-            consumer.__set__('shuttingDown', false);
-        });
-
         beforeEach(function () {
-            consumer.__set__('messagesInMemory', 0);
-            consumer.__set__('consumerEnabled', true);
-        });
-
-        afterEach(function () {
-            sandbox.reset();
+            consumer.messagesInMemory = 0;
+            consumer.consumerEnabled = true;
+            consumer.shuttingDown = false;
         });
 
         it('Should pause when getting to max message (100)', function () {
             for (let i = 1; i <= 100; i++) {
                 consumerEventHandlers.message({});
-                consumer.__get__('consumerEnabled').should.be.eql(i !== 100);
+                (consumer.consumerEnabled).should.be.eql(i !== 100);
             }
 
-            logInfoStub.args[0][0].should.eql('Reached 100 messages (max is 100), pausing kafka consumers');
+            logInfoStub.args[2][0].should.eql('Reached 100 messages (max is 100), pausing kafka consumers');
 
             for (let i = 0; i < 100; i++) {
                 consumerEventHandlers.message({});
-                consumer.__get__('consumerEnabled').should.be.eql(false);
+                (consumer.consumerEnabled).should.be.eql(false);
             }
         });
 
@@ -225,40 +235,36 @@ describe('Testing kafka consumer component', function () {
                 consumerEventHandlers.message({});
             }
 
-            logInfoStub.args[0][0].should.eql('Reached 100 messages (max is 100), pausing kafka consumers');
+            logInfoStub.args[2][0].should.eql('Reached 100 messages (max is 100), pausing kafka consumers');
 
             for (let i = 175; i >= 0; i--) {
                 consumer.decreaseMessageInMemory();
-                consumer.__get__('consumerEnabled').should.be.eql(i === 0);
+                (consumer.consumerEnabled).should.be.eql(i === 0);
             }
         });
     });
 
     describe('testing validateOffsetsAreSynced methods', function () {
-        before(function () {
-            sandbox.reset();
-            consumer.__set__('messagesInMemory', 0);
-            consumer.__set__('consumerEnabled', true);
-            consumer.__set__('shuttingDown', false);
-            validateOffsetsAreSyncedStub = sandbox.stub(consumerOffsetOutOfSyncChecker, 'validateOffsetsAreSynced');
+        beforeEach(function () {
+            consumer.messagesInMemory = 0;
+            consumer.consumerEnabled = true;
+            consumer.shuttingDown = false;
+
+            validateOffsetsAreSyncedStub = sandbox.stub(consumer.consumerOffsetOutOfSyncChecker, 'validateOffsetsAreSynced');
             validateOffsetsAreSyncedStub.resolves();
         });
 
-        afterEach(function () {
-            sandbox.resetHistory();
-        });
-
         it('validateOffsetsAreSynced is not called since no consumer is not enabled yet', function () {
-            consumer.__set__('consumerEnabled', false);
+            consumer.consumerEnabled = false;
             return consumer.validateOffsetsAreSynced()
                 .then(() => {
-                    should(logInfoStub.args[0][0]).eql('Monitor Offset: Skipping check as the consumer is paused');
+                    should(logInfoStub.args[2][0]).eql('Monitor Offset: Skipping check as the consumer is paused');
                     sinon.assert.callCount(validateOffsetsAreSyncedStub, 0);
                 });
         });
 
         it('validateOffsetsAreSynced is called since consumer is enabled', function () {
-            consumer.__set__('consumerEnabled', true);
+            consumer.consumerEnabled = true;
             return consumer.validateOffsetsAreSynced()
                 .then(() => {
                     sinon.assert.callCount(validateOffsetsAreSyncedStub, 1);

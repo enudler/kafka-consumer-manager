@@ -1,42 +1,44 @@
-  'use strict';
+'use strict';
 
 let sinon = require('sinon'),
-    rewire = require('rewire'),
-    should = require('should');
+    should = require('should'),
+    KafkaConsumerManager = require('../src/kafkaConsumerManager'), //,
+    KafkaProducer = require('../src/producers/kafkaProducer'),
+    KafkaConsumer = require('../src/consumers/kafkaConsumer'),
+    DependencyChecker = require('../src/healthCheckers/dependencyChecker'),
+    KafkaThrottlingManager = require('../src/throttling/kafkaThrottlingManager');
+
+let fullConfiguration = {
+    KafkaUrl: 'url',
+    GroupId: 'GroupId',
+    KafkaConnectionTimeout: '1000',
+    KafkaOffsetDiffThreshold: '3',
+    Topics: ['topic-a', 'topic-b'],
+    AutoCommit: true,
+    MessageFunction: (msg) => {}
+    // ResumePauseCheckFunction: () => {},
+    // ResumePauseIntervalMs: 1000
+};
 
 describe('Verify mandatory params', () => {
-    let sandbox;
-    let kafkaConsumerManager = rewire('../src/kafkaConsumerManager');
-    let producer = require('../src/producers/kafkaProducer');
-    let consumer = require('../src/consumers/kafkaConsumer');
-    let healthChecker = require('../src/healthCheckers/dependencyChecker');
-
-    let fullConfiguration = {
-        KafkaUrl: 'url',
-        GroupId: 'GroupId',
-        KafkaConnectionTimeout: '1000',
-        KafkaOffsetDiffThreshold: '3',
-        Topics: ['topic-a', 'topic-b'],
-        AutoCommit: true
-    };
+    let sandbox, kafkaConsumerManager = new KafkaConsumerManager(), producerInitStub,
+        consumerInitStub, dependencyInitStub, throttlingInitStub;
 
     beforeEach(() => {
-        fullConfiguration.MessageFunction = (msg) => {
-        };
-
-        fullConfiguration.ResumePauseCheckFunction = () => {
-        };
+        producerInitStub.resolves();
+        consumerInitStub.resolves();
+        dependencyInitStub.returns({});
+        throttlingInitStub.returns({});
     });
 
     before(() => {
         sandbox = sinon.sandbox.create();
-        let producerInitStub = sandbox.stub(producer, 'init');
-        let consumerInitStub = sandbox.stub(consumer, 'init');
-        let healthCheckerInitStub = sandbox.stub(healthChecker, 'init');
+        producerInitStub = sandbox.stub(KafkaProducer.prototype, 'init');
+        consumerInitStub = sandbox.stub(KafkaConsumer.prototype, 'init');
+        dependencyInitStub = sandbox.stub(DependencyChecker.prototype, 'init');
+        throttlingInitStub = sandbox.stub(KafkaThrottlingManager.prototype, 'init');
 
-        producerInitStub.resolves();
-        consumerInitStub.resolves();
-        healthCheckerInitStub.resolves();
+        // dependencyCheckerCtor = sandbox.createStubInstance(DependencyChecker);
     });
 
     after(() => {
@@ -45,6 +47,9 @@ describe('Verify mandatory params', () => {
 
     it('All params exists', async () => {
         await kafkaConsumerManager.init(fullConfiguration);
+        should(producerInitStub.calledOnce).eql(true);
+        should(consumerInitStub.calledOnce).eql(true);
+        should(dependencyInitStub.calledOnce).eql(true);
     });
 
     it('All params are missing', async () => {
@@ -69,7 +74,7 @@ describe('Verify mandatory params', () => {
                 });
                 throw new Error('Should fail');
             } catch (err) {
-                if (key.indexOf('FUNCTION') > -1) {
+                if (key.toUpperCase().indexOf('FUNCTION') > -1) {
                     err.message.should.eql(key + ' should be a valid function');
                 } else {
                     err.message.should.eql('Missing mandatory environment variables: ' + key);
@@ -104,17 +109,25 @@ describe('Verify mandatory params', () => {
 });
 
 describe('Verify export functions', () => {
-    let sandbox, consumer, resumeStub, pauseStub, validateOffsetsAreSyncedStub,
-        closeConnectionStub, decreaseMessageInMemoryStub, kafkaConsumerManager;
+    let sandbox, resumeStub, pauseStub, validateOffsetsAreSyncedStub,
+        closeConnectionStub, decreaseMessageInMemoryStub, kafkaConsumerManager
+        , dependencyInitStub, throttlingInitStub;
 
-    before(() => {
-        kafkaConsumerManager = rewire('../src/kafkaConsumerManager');
+    before(async () => {
+        kafkaConsumerManager = new KafkaConsumerManager();
         sandbox = sinon.sandbox.create();
         resumeStub = sandbox.stub();
         pauseStub = sandbox.stub();
         validateOffsetsAreSyncedStub = sandbox.stub();
         closeConnectionStub = sandbox.stub();
         decreaseMessageInMemoryStub = sandbox.stub();
+
+        sandbox.stub(KafkaProducer.prototype, 'init').resolves();
+        sandbox.stub(KafkaConsumer.prototype, 'init').resolves();
+        dependencyInitStub = sandbox.stub(DependencyChecker.prototype, 'init');
+        throttlingInitStub = sandbox.stub(KafkaThrottlingManager.prototype, 'init');
+
+        await kafkaConsumerManager.init(fullConfiguration);
 
         let consumer = {
             resume: resumeStub,
@@ -123,7 +136,7 @@ describe('Verify export functions', () => {
             closeConnection: closeConnectionStub,
             decreaseMessageInMemory: decreaseMessageInMemoryStub
         };
-        kafkaConsumerManager.__set__('chosenConsumer', consumer);
+        kafkaConsumerManager.chosenConsumer = consumer;
     });
 
     after(() => {

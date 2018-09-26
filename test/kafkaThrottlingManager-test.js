@@ -1,31 +1,40 @@
 let sinon = require('sinon'),
-    rewire = require('rewire'),
     async = require('async'),
     logger = require('../src/helpers/logger'),
-    kafkaStreamConsumer = require('../src/consumers/kafkaStreamConsumer'),
-    should = require('should');
+    KafkaStreamConsumer = require('../src/consumers/kafkaStreamConsumer'),
+    should = require('should'),
+    KafkaThrottlingManager = require('../src/throttling/kafkaThrottlingManager');
+
 let sandbox, kafkaThrottlingManager, commitFunctionStub, logInfoStub, logTraceStub, innerQueuePushStub,
-    asyncQueueStub, consumerSetThirstyStub, consumerResumeStub, consumerPauseStub;
+    asyncQueueStub, consumerSetThirstyStub, consumerResumeStub, consumerPauseStub,
+    kafkaStreamConsumer, commitStub;
 
 describe('Testing kafkaThrottlingManager component', () => {
     before(() => {
         sandbox = sinon.sandbox.create();
         logInfoStub = sandbox.stub(logger, 'info');
         logTraceStub = sandbox.stub(logger, 'trace');
-        consumerSetThirstyStub = sandbox.stub(kafkaStreamConsumer, 'setThirsty');
-        consumerResumeStub = sandbox.stub(kafkaStreamConsumer, 'resume');
-        consumerPauseStub = sandbox.stub(kafkaStreamConsumer, 'pause');
+        consumerSetThirstyStub = sandbox.stub();
+        consumerResumeStub = sandbox.stub();
+        consumerPauseStub = sandbox.stub();
+        commitStub = sandbox.stub();
+
+        kafkaStreamConsumer = {
+            setThirsty: consumerSetThirstyStub,
+            resume: consumerResumeStub,
+            pause: consumerPauseStub,
+            commit: commitStub
+        };
     });
     after(() => {
         sandbox.restore();
     });
 
     describe('Testing init and the manageQueue by interval', () => {
-
         let intervalId;
         let interval = 1000;
         let thresholdMessages = 20;
-        let functionWithDelay = new Promise((resolve, reject) => {
+        let callbackFunc = new Promise((resolve, reject) => {
             setTimeout(() => {
                 return resolve();
             }, 100);
@@ -36,9 +45,10 @@ describe('Testing kafkaThrottlingManager component', () => {
         });
 
         it('Successful init to inner async queues', () => {
-            kafkaThrottlingManager = rewire('../src/throttling/kafkaThrottlingManager');
-            intervalId = kafkaThrottlingManager.init(thresholdMessages, interval, ['TopicA', 'TopicB'], functionWithDelay,functionWithDelay);
-            let queues = kafkaThrottlingManager.__get__('innerQueues');
+            kafkaThrottlingManager = new KafkaThrottlingManager();
+            intervalId = kafkaThrottlingManager.init(thresholdMessages,
+                interval, ['TopicA', 'TopicB'], callbackFunc, kafkaStreamConsumer);
+            let queues = kafkaThrottlingManager.innerQueues;
             queues.should.eql({TopicA: {}, TopicB: {}});
         });
 
@@ -82,11 +92,11 @@ describe('Testing kafkaThrottlingManager component', () => {
                 push: sandbox.stub(),
                 length: sandbox.stub()
             };
-
             asyncQueueStub = sandbox.stub(async, 'queue');
             asyncQueueStub.returns(innerQueuePushStub);
-            kafkaThrottlingManager = rewire('../src/throttling/kafkaThrottlingManager');
-            intervalId = kafkaThrottlingManager.init(1, 1, ['TopicA', 'TopicB'], () => Promise.resolve(), () => Promise.resolve(true));
+            kafkaThrottlingManager = new KafkaThrottlingManager();
+            kafkaThrottlingManager.init(1, 1, ['TopicA', 'TopicB'], () => Promise.resolve(), kafkaStreamConsumer);
+            intervalId = kafkaThrottlingManager.intervalId;
         });
         afterEach(() => {
             sandbox.reset();
