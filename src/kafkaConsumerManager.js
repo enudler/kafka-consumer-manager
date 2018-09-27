@@ -36,43 +36,44 @@ module.exports = class KafkaConsumerManager {
         let chosenConsumer = configuration.AutoCommit === false ? new KafkaStreamConsumer() : new KafkaConsumer();
 
         Object.assign(this, {
-            chosenConsumer: chosenConsumer,
-            producer: new KafkaProducer(),
-            dependencyChecker: new DependencyChecker()
+            _chosenConsumer: chosenConsumer,
+            _producer: new KafkaProducer(),
+            _dependencyChecker: new DependencyChecker()
         });
 
-        this.dependencyChecker.init(chosenConsumer, configuration);
+        this._dependencyChecker.init(chosenConsumer, configuration);
 
-        return this.producer.init(configuration)
+        return this._producer.init(configuration)
             .then(() => {
-                return this.chosenConsumer.init(configuration);
+                return this._chosenConsumer.init(configuration);
             });
     }
 
     validateOffsetsAreSynced() {
-        return this.chosenConsumer.validateOffsetsAreSynced();
+        return this._chosenConsumer.validateOffsetsAreSynced();
     }
 
     pause(){
-        return this.chosenConsumer.pause();
+        return this._chosenConsumer.pause();
     }
     resume() {
-        return this.chosenConsumer.resume();
+        return this._chosenConsumer.resume();
     }
 
     closeConnection() {
-        return this.chosenConsumer.closeConnection();
+        this._dependencyChecker.stop();
+        return this._chosenConsumer.closeConnection();
     }
 
     finishedHandlingMessage() {
-        return this.chosenConsumer.decreaseMessageInMemory();
+        return this._chosenConsumer.decreaseMessageInMemory();
     }
     send() {
-        return this.producer.send();
+        return this._producer.send();
     }
 
     getLastMessage() {
-        return this.chosenConsumer.getLastMessage();
+        return this._chosenConsumer.getLastMessage();
     }
 };
 

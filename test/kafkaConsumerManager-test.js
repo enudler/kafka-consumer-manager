@@ -136,7 +136,7 @@ describe('Verify export functions', () => {
             closeConnection: closeConnectionStub,
             decreaseMessageInMemory: decreaseMessageInMemoryStub
         };
-        kafkaConsumerManager.chosenConsumer = consumer;
+        kafkaConsumerManager._chosenConsumer = consumer;
     });
 
     after(() => {

@@ -199,7 +199,7 @@ describe('Testing kafka consumer component', function () {
             consumer.close = (cb) => { cb(_.cloneDeep(err)) };
             closeStub.returns('err');
             try {
-                consumer.closeConnection();
+                await consumer.closeConnection();
                 assert.fail('close connection need to fail');
             } catch (err){
                 should(err).eql(err);

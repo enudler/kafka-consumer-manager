@@ -30,8 +30,8 @@ describe('Testing kafkaThrottlingManager component', () => {
         sandbox.restore();
     });
 
+    // this describe represent one flow
     describe('Testing init and the manageQueue by interval', () => {
-        let intervalId;
         let interval = 1000;
         let thresholdMessages = 20;
         let callbackFunc = new Promise((resolve, reject) => {
@@ -41,12 +41,13 @@ describe('Testing kafkaThrottlingManager component', () => {
         });
 
         after(() => {
-            clearInterval(intervalId);
+            sandbox.restore();
+            kafkaThrottlingManager.stop();
         });
 
         it('Successful init to inner async queues', () => {
             kafkaThrottlingManager = new KafkaThrottlingManager();
-            intervalId = kafkaThrottlingManager.init(thresholdMessages,
+            kafkaThrottlingManager.init(thresholdMessages,
                 interval, ['TopicA', 'TopicB'], callbackFunc, kafkaStreamConsumer);
             let queues = kafkaThrottlingManager.innerQueues;
             queues.should.eql({TopicA: {}, TopicB: {}});
@@ -85,7 +86,6 @@ describe('Testing kafkaThrottlingManager component', () => {
     });
 
     describe('handleIncomingMessage method tests', () => {
-        let intervalId;
         before(() => {
             commitFunctionStub = sandbox.stub();
             innerQueuePushStub = {
@@ -96,14 +96,15 @@ describe('Testing kafkaThrottlingManager component', () => {
             asyncQueueStub.returns(innerQueuePushStub);
             kafkaThrottlingManager = new KafkaThrottlingManager();
             kafkaThrottlingManager.init(1, 1, ['TopicA', 'TopicB'], () => Promise.resolve(), kafkaStreamConsumer);
-            intervalId = kafkaThrottlingManager.intervalId;
         });
+
         afterEach(() => {
+            kafkaThrottlingManager.stop();
             sandbox.reset();
         });
 
         after(() => {
-            clearInterval(intervalId);
+            sandbox.restore();
         });
 
         it('First call to handleIncomingMessage should create the right partition-queue ', () => {

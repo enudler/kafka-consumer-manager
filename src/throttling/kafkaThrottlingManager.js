@@ -30,6 +30,10 @@ module.exports = class KafkaThrottlingManager {
             this.kafkaStreamConsumer.commit(message);
         });
     }
+
+    stop(){
+        clearInterval(this.intervalId);
+    }
 };
 
 function generateThrottlingQueueInstance(callbackPromise) {

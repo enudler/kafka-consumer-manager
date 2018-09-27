@@ -21,13 +21,12 @@ describe('Testing events method', function () {
         logErrorStub = sandbox.stub(logger, 'error');
         logInfoStub = sandbox.stub(logger, 'info');
         logTraceStub = sandbox.stub(logger, 'trace');
-        sandbox.stub(KafkaThrottlingManager.prototype, 'init');
         handleIncomingMessageStub = sandbox.stub(KafkaThrottlingManager.prototype, 'handleIncomingMessage');
         consumerGroupStreamStub = sandbox.stub(kafka, 'ConsumerGroupStream');
         sandbox.stub(kafka, 'Offset').returns({});
+        sandbox.stub(KafkaThrottlingManager.prototype, 'init');
     });
     beforeEach(function () {
-        // kafkaThrottlingManagerInitStub = sandbox.stub(KafkaThrottlingManager.prototype, 'init');
         // consumerOffsetOutOfSyncCheckerInitStub = sandbox.stub(ConsumerOffsetOutOfSyncChecker.prototype, 'init');
 
         consumerEventHandlers = {};
@@ -71,8 +70,7 @@ describe('Testing events method', function () {
                 ThrottlingThreshold: 1000,
                 ThrottlingCheckIntervalMs: 10000,
                 Topics: ['topic-a', 'topic-b'],
-                MessageFunction: () => {
-                },
+                MessageFunction: () => {},
                 KafkaConnectionTimeout: 1000
             };
             try {
@@ -234,12 +232,6 @@ describe('Testing commit, pause and resume  methods', function () {
             MessageFunction: promiseActionSpy,
             FetchMaxBytes: 9999
         };
-
-        setTimeout(() => {
-            consumerEventHandlers.connect();
-        }, 150);
-
-        await consumer.init(baseConfiguration);
     });
     afterEach(function () {
         sandbox.reset();
@@ -249,7 +241,9 @@ describe('Testing commit, pause and resume  methods', function () {
         sandbox.restore();
     });
 
-    it('testing resume function handling - too many messages in memory', function () {
+    it('testing resume function handling - too many messages in memory', async function () {
+        setTimeout(() => { consumerEventHandlers.connect() }, 150);
+        await consumer.init(baseConfiguration);
         consumer.setThirsty(false);
         consumer.setDependencyHealthy(true);
         consumer.resume();
@@ -257,7 +251,9 @@ describe('Testing commit, pause and resume  methods', function () {
         should(resumeStub.calledOnce).eql(false);
     });
 
-    it('Testing resume function handling - dependency not healthy', function () {
+    it('Testing resume function handling - dependency not healthy', async function () {
+        setTimeout(() => { consumerEventHandlers.connect() }, 150);
+        await consumer.init(baseConfiguration);
         consumer.setThirsty(true);
         consumer.setDependencyHealthy(false);
         consumer.resume();
@@ -265,8 +261,9 @@ describe('Testing commit, pause and resume  methods', function () {
         should(resumeStub.calledOnce).eql(false);
     });
 
-    it('testing pause & resume methods', function () {
-        consumer.init(baseConfiguration);
+    it('testing pause & resume methods', async function () {
+        setTimeout(() => { consumerEventHandlers.connect() }, 150);
+        await consumer.init(baseConfiguration);
         consumerGroupStreamStub.returns(consumerStreamStub);
         consumer.pause();
         sinon.assert.calledWithExactly(logInfoStub, 'Suspending Kafka consumption');
@@ -277,21 +274,22 @@ describe('Testing commit, pause and resume  methods', function () {
         sinon.assert.calledOnce(resumeStub);
     });
 
-    it('testing commit methods - CommitEachMessage is true', function () {
+    it('testing commit methods - CommitEachMessage is true', async function () {
+        setTimeout(() => { consumerEventHandlers.connect() }, 150);
+        await consumer.init(baseConfiguration);
         let msg = {
             value: 'some_value',
             partition: 123,
             offset: 5,
             topic: 'my_topic'
         };
-        consumer.init(baseConfiguration);
         consumerGroupStreamStub.returns(consumerStreamStub);
         consumer.commit(msg);
         sinon.assert.calledOnce(commitStub);
         sinon.assert.calledWithExactly(commitStub, msg, true);
     });
 
-    it('testing commit methods - CommitEachMessage is false', function () {
+    it('testing commit methods - CommitEachMessage is false', async function () {
         let commitEachMsgConfiguration = {
             KafkaUrl: 'KafkaUrl',
             GroupId: 'GroupId',
@@ -310,7 +308,10 @@ describe('Testing commit, pause and resume  methods', function () {
             offset: 5,
             topic: 'my_topic'
         };
-        consumer.init(commitEachMsgConfiguration);
+
+        setTimeout(() => { consumerEventHandlers.connect() }, 150);
+        await consumer.init(commitEachMsgConfiguration);
+
         consumerGroupStreamStub.returns(consumerStreamStub);
         consumer.commit(msg);
         sinon.assert.calledOnce(commitStub);
@@ -398,7 +399,7 @@ describe('Testing closeConnection method', function () {
         handleIncomingMessageStub = sandbox.stub(KafkaThrottlingManager.prototype, 'handleIncomingMessage');
         sandbox.stub(KafkaThrottlingManager.prototype, 'init');
         sandbox.stub(kafka, 'Offset');
-        consumerGroupStreamStub = sandbox.stub(kafka, 'ConsumerGroupStream')
+        consumerGroupStreamStub = sandbox.stub(kafka, 'ConsumerGroupStream');
     });
 
     beforeEach(async function () {

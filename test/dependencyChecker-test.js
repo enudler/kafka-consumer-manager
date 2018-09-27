@@ -16,16 +16,13 @@ describe('Testing health checker', function () {
         consumerResumeStub = sandbox.stub(consumer, 'resume');
     });
 
-    beforeEach(() => {
-        sandbox.reset();
-    });
-
     after(() => {
         sandbox.restore();
     });
 
     afterEach(() => {
         healthChecker.stop();
+        sandbox.reset();
     });
 
     it('Testing health checker is not configured - health checker disabled', (done) => {

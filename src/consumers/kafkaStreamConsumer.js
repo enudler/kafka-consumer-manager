@@ -89,6 +89,7 @@ module.exports = class KafkaStreamConsumer {
     closeConnection() {
         this.shuttingDown = true;
         logger.info('Consumer is closing connection');
+        this.kafkaThrottlingManager.stop();
         return new Promise((resolve, reject) => {
             this.consumer.close(function (err) {
                 if (err) {
