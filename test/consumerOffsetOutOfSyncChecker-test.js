@@ -3,7 +3,6 @@
 let kafka = require('kafka-node'),
     sinon = require('sinon'),
     _ = require('lodash'),
-    logger = require('../src/helpers/logger'),
     should = require('should'),
     ConsumerOffsetOutOfSyncChecker = require('../src/healthCheckers/consumerOffsetOutOfSyncChecker');
 
@@ -12,12 +11,13 @@ let sandbox, offsetChecker,
     consumerEventHandlers,
     logErrorStub, consumerStub, fetchStub,
     offsetStub,
-    closeStub, pauseStub, resumeStub;
+    closeStub, pauseStub, resumeStub, logger;
 
 describe('Testing consumer offset out of sync checker', function () {
     before(function () {
         sandbox = sinon.sandbox.create();
-        logErrorStub = sandbox.stub(logger, 'error');
+        logErrorStub = sandbox.stub();
+        logger = {error: logErrorStub, trace: sandbox.stub(), info: sandbox.stub()};
         closeStub = sandbox.stub();
         pauseStub = sandbox.stub();
         resumeStub = sandbox.stub();
@@ -44,7 +44,7 @@ describe('Testing consumer offset out of sync checker', function () {
         // offsetChecker = rewire('../src/healthCheckers/consumerOffsetOutOfSyncChecker');
         let kafkaOffsetDiffThreshold = 3;
 
-        offsetChecker = new ConsumerOffsetOutOfSyncChecker(consumerStub, kafkaOffsetDiffThreshold);
+        offsetChecker = new ConsumerOffsetOutOfSyncChecker(consumerStub, kafkaOffsetDiffThreshold, logger);
 
         // offsetChecker.init(consumerStub, configuration);
     });

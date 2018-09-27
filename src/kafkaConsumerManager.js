@@ -2,6 +2,7 @@ let KafkaProducer = require('./producers/kafkaProducer');
 let KafkaConsumer = require('./consumers/kafkaConsumer');
 let KafkaStreamConsumer = require('./consumers/kafkaStreamConsumer');
 let DependencyChecker = require('./healthCheckers/dependencyChecker');
+let bunyanLogger = require('./helpers/logger');
 let _ = require('lodash');
 
 module.exports = class KafkaConsumerManager {
@@ -35,17 +36,21 @@ module.exports = class KafkaConsumerManager {
 
         let chosenConsumer = configuration.AutoCommit === false ? new KafkaStreamConsumer() : new KafkaConsumer();
 
+        let loggerChild = {consumer_name: configuration.LoggerName} || {};
+        let logger = bunyanLogger.child(loggerChild);
+
         Object.assign(this, {
+            _logger: logger,
             _chosenConsumer: chosenConsumer,
             _producer: new KafkaProducer(),
             _dependencyChecker: new DependencyChecker()
         });
 
-        this._dependencyChecker.init(chosenConsumer, configuration);
+        this._dependencyChecker.init(chosenConsumer, configuration, logger);
 
-        return this._producer.init(configuration)
+        return this._producer.init(configuration, logger)
             .then(() => {
-                return this._chosenConsumer.init(configuration);
+                return this._chosenConsumer.init(configuration, logger);
             });
     }
 

@@ -56,8 +56,7 @@ describe('Verify mandatory params', () => {
         let config = {};
 
         try {
-            await kafkaConsumerManager.init(config, () => {
-            });
+            await kafkaConsumerManager.init(config);
             throw new Error('Should fail');
         } catch (err) {
             err.message.should.eql('Missing mandatory environment variables: KafkaUrl,GroupId,KafkaOffsetDiffThreshold,KafkaConnectionTimeout,Topics,AutoCommit');
@@ -70,8 +69,7 @@ describe('Verify mandatory params', () => {
             delete clonedConfig[key];
 
             try {
-                await kafkaConsumerManager.init(clonedConfig, () => {
-                });
+                await kafkaConsumerManager.init(clonedConfig);
                 throw new Error('Should fail');
             } catch (err) {
                 if (key.toUpperCase().indexOf('FUNCTION') > -1) {
@@ -87,8 +85,7 @@ describe('Verify mandatory params', () => {
         let fullConfigurationWithPauseResume = JSON.parse(JSON.stringify(fullConfiguration));
         fullConfigurationWithPauseResume.ResumePauseIntervalMs = 1000;
         try {
-            await kafkaConsumerManager.init(fullConfigurationWithPauseResume, () => {
-            });
+            await kafkaConsumerManager.init(fullConfigurationWithPauseResume);
             throw new Error('Should fail');
         } catch (err) {
             err.message.should.eql('ResumePauseCheckFunction should be a valid function');
@@ -110,8 +107,8 @@ describe('Verify mandatory params', () => {
 
 describe('Verify export functions', () => {
     let sandbox, resumeStub, pauseStub, validateOffsetsAreSyncedStub,
-        closeConnectionStub, decreaseMessageInMemoryStub, kafkaConsumerManager
-        , dependencyInitStub, throttlingInitStub;
+        closeConnectionStub, decreaseMessageInMemoryStub, kafkaConsumerManager,
+        dependencyInitStub, throttlingInitStub;
 
     before(async () => {
         kafkaConsumerManager = new KafkaConsumerManager();
@@ -124,12 +121,14 @@ describe('Verify export functions', () => {
 
         sandbox.stub(KafkaProducer.prototype, 'init').resolves();
         sandbox.stub(KafkaConsumer.prototype, 'init').resolves();
+
         dependencyInitStub = sandbox.stub(DependencyChecker.prototype, 'init');
         throttlingInitStub = sandbox.stub(KafkaThrottlingManager.prototype, 'init');
 
         await kafkaConsumerManager.init(fullConfiguration);
 
         let consumer = {
+            logger: {error: sandbox.stub(), trace: sandbox.stub(), info: sandbox.stub()},
             resume: resumeStub,
             pause: pauseStub,
             validateOffsetsAreSynced: validateOffsetsAreSyncedStub,

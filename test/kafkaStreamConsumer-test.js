@@ -4,7 +4,6 @@ let kafka = require('kafka-node'),
     sinon = require('sinon'),
     KafkaThrottlingManager = require('../src/throttling/kafkaThrottlingManager'),
     ConsumerOffsetOutOfSyncChecker = require('../src/healthCheckers/consumerOffsetOutOfSyncChecker'),
-    logger = require('../src/helpers/logger'),
     should = require('should'),
     KafkaStreamConsumer = require('../src/consumers/kafkaStreamConsumer'),
     assert = require('assert'),
@@ -13,22 +12,22 @@ let kafka = require('kafka-node'),
 let sandbox, logErrorStub, logTraceStub, logInfoStub, consumerGroupStreamStub,
     consumerStreamStub, consumerEventHandlers, resumeStub, pauseStub, consumer,
     promiseActionSpy, baseConfiguration, handleIncomingMessageStub, commitStub,
-    validateOffsetsAreSyncedStub;
+    validateOffsetsAreSyncedStub, logger;
 
 describe('Testing events method', function () {
     before(function(){
         sandbox = sinon.sandbox.create();
-        logErrorStub = sandbox.stub(logger, 'error');
-        logInfoStub = sandbox.stub(logger, 'info');
-        logTraceStub = sandbox.stub(logger, 'trace');
+        logErrorStub = sandbox.stub();
+        logInfoStub = sandbox.stub();
+        logTraceStub = sandbox.stub();
+        logger = {error: logErrorStub, trace: logTraceStub, info: logInfoStub};
+
         handleIncomingMessageStub = sandbox.stub(KafkaThrottlingManager.prototype, 'handleIncomingMessage');
         consumerGroupStreamStub = sandbox.stub(kafka, 'ConsumerGroupStream');
         sandbox.stub(kafka, 'Offset').returns({});
         sandbox.stub(KafkaThrottlingManager.prototype, 'init');
     });
     beforeEach(function () {
-        // consumerOffsetOutOfSyncCheckerInitStub = sandbox.stub(ConsumerOffsetOutOfSyncChecker.prototype, 'init');
-
         consumerEventHandlers = {};
 
         consumerStreamStub = {
@@ -74,7 +73,7 @@ describe('Testing events method', function () {
                 KafkaConnectionTimeout: 1000
             };
             try {
-                await consumer.init(baseConfiguration);
+                await consumer.init(baseConfiguration, logger);
                 assert.fail('consumer connect should fail');
             } catch (err) {
                 should(err.message).equal('Failed to connect to kafka after 1000 ms.');
@@ -96,7 +95,7 @@ describe('Testing events method', function () {
             setTimeout(() => {
                 consumerEventHandlers.connect();
             }, 100);
-            await consumer.init(commitEachMsgConfiguration);
+            await consumer.init(commitEachMsgConfiguration, logger);
 
             let optionsExpected = {
                 'autoCommit': false,
@@ -128,7 +127,7 @@ describe('Testing events method', function () {
             setTimeout(() => {
                 consumerEventHandlers.connect();
             }, 100);
-            await consumer.init(baseConfiguration);
+            await consumer.init(baseConfiguration, logger);
 
             let optionsExpected = {
                 'autoCommit': false,
@@ -154,7 +153,7 @@ describe('Testing events method', function () {
             setTimeout(() => {
                 consumerEventHandlers.connect();
             }, 100);
-            await consumer.init(baseConfiguration);
+            await consumer.init(baseConfiguration, logger);
         });
 
         it('testing listening functions - on data', async function () {
@@ -191,10 +190,10 @@ describe('Testing commit, pause and resume  methods', function () {
     let offsetStub;
     before(() => {
         sandbox = sinon.sandbox.create();
-        logInfoStub = sandbox.stub(logger, 'info');
+        logInfoStub = sandbox.stub();
+        logger = {error: sandbox.stub(), trace: sandbox.stub(), info: logInfoStub};
         handleIncomingMessageStub = sandbox.stub(KafkaThrottlingManager.prototype, 'handleIncomingMessage');
         sandbox.stub(KafkaThrottlingManager.prototype, 'init');
-        // consumerOffsetOutOfSyncCheckerInitStub = sandbox.stub(ConsumerOffsetOutOfSyncChecker, 'init');
         pauseStub = sandbox.stub();
         resumeStub = sandbox.stub();
         commitStub = sandbox.stub();
@@ -243,7 +242,7 @@ describe('Testing commit, pause and resume  methods', function () {
 
     it('testing resume function handling - too many messages in memory', async function () {
         setTimeout(() => { consumerEventHandlers.connect() }, 150);
-        await consumer.init(baseConfiguration);
+        await consumer.init(baseConfiguration, logger);
         consumer.setThirsty(false);
         consumer.setDependencyHealthy(true);
         consumer.resume();
@@ -253,7 +252,7 @@ describe('Testing commit, pause and resume  methods', function () {
 
     it('Testing resume function handling - dependency not healthy', async function () {
         setTimeout(() => { consumerEventHandlers.connect() }, 150);
-        await consumer.init(baseConfiguration);
+        await consumer.init(baseConfiguration,logger);
         consumer.setThirsty(true);
         consumer.setDependencyHealthy(false);
         consumer.resume();
@@ -263,7 +262,7 @@ describe('Testing commit, pause and resume  methods', function () {
 
     it('testing pause & resume methods', async function () {
         setTimeout(() => { consumerEventHandlers.connect() }, 150);
-        await consumer.init(baseConfiguration);
+        await consumer.init(baseConfiguration, logger);
         consumerGroupStreamStub.returns(consumerStreamStub);
         consumer.pause();
         sinon.assert.calledWithExactly(logInfoStub, 'Suspending Kafka consumption');
@@ -276,7 +275,7 @@ describe('Testing commit, pause and resume  methods', function () {
 
     it('testing commit methods - CommitEachMessage is true', async function () {
         setTimeout(() => { consumerEventHandlers.connect() }, 150);
-        await consumer.init(baseConfiguration);
+        await consumer.init(baseConfiguration, logger);
         let msg = {
             value: 'some_value',
             partition: 123,
@@ -310,7 +309,7 @@ describe('Testing commit, pause and resume  methods', function () {
         };
 
         setTimeout(() => { consumerEventHandlers.connect() }, 150);
-        await consumer.init(commitEachMsgConfiguration);
+        await consumer.init(commitEachMsgConfiguration, logger);
 
         consumerGroupStreamStub.returns(consumerStreamStub);
         consumer.commit(msg);
@@ -323,7 +322,8 @@ describe('testing validateOffsetsAreSynced methods', function () {
     let offsetStub;
     before(() => {
         sandbox = sinon.sandbox.create();
-        logInfoStub = sandbox.stub(logger, 'info');
+        logInfoStub = sandbox.stub();
+        logger = {error: sandbox.stub(), trace: sandbox.stub(), info: logInfoStub};
         sandbox.stub(KafkaThrottlingManager.prototype, 'init');
         offsetStub = sandbox.stub(kafka, 'Offset');
         consumerGroupStreamStub = sandbox.stub(kafka, 'ConsumerGroupStream');
@@ -360,7 +360,7 @@ describe('testing validateOffsetsAreSynced methods', function () {
         setTimeout(() => {
             consumerEventHandlers.connect();
         }, 100);
-        await consumer.init(baseConfiguration);
+        await consumer.init(baseConfiguration, logger);
 
         validateOffsetsAreSyncedStub = sandbox.stub(consumer.consumerOffsetOutOfSyncChecker,
             'validateOffsetsAreSynced').resolves();
@@ -394,8 +394,9 @@ describe('testing validateOffsetsAreSynced methods', function () {
 describe('Testing closeConnection method', function () {
     before(() => {
         sandbox = sinon.sandbox.create();
-        logInfoStub = sandbox.stub(logger, 'info');
-        logErrorStub = sandbox.stub(logger, 'error');
+        logInfoStub = sandbox.stub();
+        logErrorStub = sandbox.stub();
+        logger = {error: logErrorStub, trace: sandbox.stub(), info: logInfoStub};
         handleIncomingMessageStub = sandbox.stub(KafkaThrottlingManager.prototype, 'handleIncomingMessage');
         sandbox.stub(KafkaThrottlingManager.prototype, 'init');
         sandbox.stub(kafka, 'Offset');
@@ -403,7 +404,6 @@ describe('Testing closeConnection method', function () {
     });
 
     beforeEach(async function () {
-        // consumerOffsetOutOfSyncCheckerInitStub = sandbox.stub(consumerOffsetOutOfSyncChecker, 'init');
         consumerEventHandlers = {};
         consumerStreamStub = {
             on: function (name, func) {
@@ -433,7 +433,7 @@ describe('Testing closeConnection method', function () {
         setTimeout(() => {
             consumerEventHandlers.connect();
         }, 100);
-        await consumer.init(baseConfiguration);
+        await consumer.init(baseConfiguration, logger);
     });
 
     after(function () {

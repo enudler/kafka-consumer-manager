@@ -6,7 +6,7 @@ let sinon = require('sinon'),
     KafkaConsumer = require('../src/consumers/kafkaConsumer');
 
 describe('Testing health checker', function () {
-    let sandbox, consumerPauseStub, consumerResumeStub, healthChecker;
+    let sandbox, consumerPauseStub, consumerResumeStub, healthChecker, logger;
     let consumer = new KafkaConsumer();
 
     before(() => {
@@ -14,6 +14,7 @@ describe('Testing health checker', function () {
         sandbox.stub(consumer, 'init');
         consumerPauseStub = sandbox.stub(consumer, 'pause');
         consumerResumeStub = sandbox.stub(consumer, 'resume');
+        logger = {error: sandbox.stub(), trace: sandbox.stub(), info: sandbox.stub()};
     });
 
     after(() => {
@@ -30,7 +31,7 @@ describe('Testing health checker', function () {
         };
 
         healthChecker = new DependencyChecker();
-        healthChecker.init(consumer, configuration);
+        healthChecker.init(consumer, configuration, logger);
         setTimeout(() => {
             should(consumerResumeStub.called).eql(false);
             done();
@@ -47,7 +48,7 @@ describe('Testing health checker', function () {
         };
 
         healthChecker = new DependencyChecker();
-        healthChecker.init(consumer, configuration);
+        healthChecker.init(consumer, configuration, logger);
         setTimeout(() => {
             should(consumerResumeStub.calledOnce).eql(true);
             done();
@@ -63,7 +64,7 @@ describe('Testing health checker', function () {
         };
 
         healthChecker = new DependencyChecker();
-        healthChecker.init(consumer, configuration);
+        healthChecker.init(consumer, configuration, logger);
 
         setTimeout(() => {
             should(consumerResumeStub.callCount).eql(3);
@@ -80,7 +81,7 @@ describe('Testing health checker', function () {
         };
 
         healthChecker = new DependencyChecker();
-        healthChecker.init(consumer, configuration);
+        healthChecker.init(consumer, configuration, logger);
 
         setTimeout(() => {
             should(consumerPauseStub.calledOnce).eql(true);
@@ -97,7 +98,7 @@ describe('Testing health checker', function () {
         };
 
         healthChecker = new DependencyChecker();
-        healthChecker.init(consumer, configuration);
+        healthChecker.init(consumer, configuration, logger);
 
         setTimeout(() => {
             should(consumerPauseStub.callCount).eql(3);
@@ -115,7 +116,7 @@ describe('Testing health checker', function () {
         };
 
         healthChecker = new DependencyChecker();
-        healthChecker.init(consumer, configuration);
+        healthChecker.init(consumer, configuration, logger);
 
         setTimeout(() => {
             should(consumerResumeStub.callCount).eql(2);

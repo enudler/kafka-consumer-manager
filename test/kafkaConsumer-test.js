@@ -3,11 +3,9 @@
 let kafka = require('kafka-node'),
     sinon = require('sinon'),
     _ = require('lodash'),
-    logger = require('../src/helpers/logger'),
     should = require('should'),
     KafkaConsumer = require('../src/consumers/kafkaConsumer'),
-    assert = require('assert'),
-    ConsumerOffsetOutOfSyncChecker = require('../src/healthCheckers/consumerOffsetOutOfSyncChecker');
+    assert = require('assert');
 
 let sandbox, consumer,
     consumerGroupStub,
@@ -15,13 +13,15 @@ let sandbox, consumer,
     logErrorStub, consumerStub, fetchStub,
     offsetStub, logInfoStub,
     closeStub, pauseStub, resumeStub, actionSpy,
-    validateOffsetsAreSyncedStub;
+    validateOffsetsAreSyncedStub,logger;
 
 describe('Testing kafka consumer component', function () {
     before(function () {
         sandbox = sinon.sandbox.create();
-        logErrorStub = sandbox.stub(logger, 'error');
-        logInfoStub = sandbox.stub(logger, 'info');
+        logErrorStub = sandbox.stub();
+        logInfoStub = sandbox.stub();
+        logger = {error: logErrorStub, trace: sandbox.stub(), info: logInfoStub};
+
         closeStub = sandbox.stub();
         pauseStub = sandbox.stub();
         resumeStub = sandbox.stub();
@@ -76,7 +76,7 @@ describe('Testing kafka consumer component', function () {
         setTimeout(() => {
             consumerEventHandlers.connect();
         }, 100);
-        await consumer.init(configuration);
+        await consumer.init(configuration, logger);
     });
 
     afterEach(function () {

@@ -1,6 +1,5 @@
 let sinon = require('sinon'),
     async = require('async'),
-    logger = require('../src/helpers/logger'),
     KafkaStreamConsumer = require('../src/consumers/kafkaStreamConsumer'),
     should = require('should'),
     KafkaThrottlingManager = require('../src/throttling/kafkaThrottlingManager');
@@ -12,8 +11,9 @@ let sandbox, kafkaThrottlingManager, commitFunctionStub, logInfoStub, logTraceSt
 describe('Testing kafkaThrottlingManager component', () => {
     before(() => {
         sandbox = sinon.sandbox.create();
-        logInfoStub = sandbox.stub(logger, 'info');
-        logTraceStub = sandbox.stub(logger, 'trace');
+        logInfoStub = sandbox.stub();
+        logTraceStub = sandbox.stub();
+        logger = {error: sandbox.stub(), trace: logTraceStub, info: logInfoStub};
         consumerSetThirstyStub = sandbox.stub();
         consumerResumeStub = sandbox.stub();
         consumerPauseStub = sandbox.stub();
@@ -48,7 +48,7 @@ describe('Testing kafkaThrottlingManager component', () => {
         it('Successful init to inner async queues', () => {
             kafkaThrottlingManager = new KafkaThrottlingManager();
             kafkaThrottlingManager.init(thresholdMessages,
-                interval, ['TopicA', 'TopicB'], callbackFunc, kafkaStreamConsumer);
+                interval, ['TopicA', 'TopicB'], callbackFunc, kafkaStreamConsumer, logger);
             let queues = kafkaThrottlingManager.innerQueues;
             queues.should.eql({TopicA: {}, TopicB: {}});
         });
@@ -95,7 +95,7 @@ describe('Testing kafkaThrottlingManager component', () => {
             asyncQueueStub = sandbox.stub(async, 'queue');
             asyncQueueStub.returns(innerQueuePushStub);
             kafkaThrottlingManager = new KafkaThrottlingManager();
-            kafkaThrottlingManager.init(1, 1, ['TopicA', 'TopicB'], () => Promise.resolve(), kafkaStreamConsumer);
+            kafkaThrottlingManager.init(1, 1, ['TopicA', 'TopicB'], () => Promise.resolve(), kafkaStreamConsumer, logger);
         });
 
         afterEach(() => {

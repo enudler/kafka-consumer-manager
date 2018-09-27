@@ -1,11 +1,11 @@
 'use-strict';
 
-let async = require('async'),
-    logger = require('../helpers/logger');
+let async = require('async');
 
 module.exports = class KafkaThrottlingManager {
-    init(messagesInMemoryThreshold, interval, topics, callbackPromise, kafkaStreamConsumer){
+    init(messagesInMemoryThreshold, interval, topics, callbackPromise, kafkaStreamConsumer, logger){
         Object.assign(this, {
+            logger: logger,
             kafkaStreamConsumer: kafkaStreamConsumer,
             messagesInMemoryThreshold: messagesInMemoryThreshold,
             callbackPromise: callbackPromise,
@@ -16,7 +16,7 @@ module.exports = class KafkaThrottlingManager {
         });
 
         this.intervalId = setInterval(function(){
-            manageQueues(this.kafkaStreamConsumer, this.messagesInMemoryThreshold, this.innerQueues);
+            manageQueues(this.kafkaStreamConsumer, this.messagesInMemoryThreshold, this.innerQueues, this.logger);
         }.bind(this), interval);
     }
 
@@ -24,7 +24,7 @@ module.exports = class KafkaThrottlingManager {
         let partition = message.partition;
         let topic = message.topic;
         if (!this.innerQueues[topic][partition]) {
-            this.innerQueues[topic][partition] = generateThrottlingQueueInstance(this.callbackPromise);
+            this.innerQueues[topic][partition] = generateThrottlingQueueInstance(this.callbackPromise, this.logger);
         }
         this.innerQueues[topic][partition].push(message, () => {
             this.kafkaStreamConsumer.commit(message);
@@ -36,13 +36,13 @@ module.exports = class KafkaThrottlingManager {
     }
 };
 
-function generateThrottlingQueueInstance(callbackPromise) {
+function generateThrottlingQueueInstance(callbackPromise, logger) {
     let queue = async.queue(function (message, commitOffsetCallback) {
         return callbackPromise(message).then(() => {
-            logger.trace(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
+            this.logger.trace(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
             commitOffsetCallback(message);
         });
-    }, 1);
+    }.bind({logger}), 1);
     return queue;
 }
 
@@ -58,7 +58,7 @@ function getQueueLengthsByTopic(innerQueues) {
     return queueSizesByTopic;
 }
 
-function manageQueues(kafkaStreamConsumer, messagesInMemoryThreshold, innerQueues) {
+function manageQueues(kafkaStreamConsumer, messagesInMemoryThreshold, innerQueues, logger) {
     logger.trace('managing queues..');
     let lengthsByTopic = getQueueLengthsByTopic(innerQueues);
     let totalMessagesInQueues = 0;

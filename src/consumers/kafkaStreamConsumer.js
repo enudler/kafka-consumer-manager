@@ -1,11 +1,10 @@
 let kafka = require('kafka-node'),
-    logger = require('../helpers/logger'),
     ConsumerOffsetOutOfSyncChecker = require('../healthCheckers/consumerOffsetOutOfSyncChecker'),
     KafkaThrottlingManager = require('../throttling/kafkaThrottlingManager'),
     _ = require('lodash');
 
 module.exports = class KafkaStreamConsumer {
-    init(config){
+    init(config, logger){
         return new Promise((resolve, reject) => {
             let {KafkaUrl, GroupId, Topics, MessageFunction, FetchMaxBytes,
                 AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000} = config;
@@ -23,6 +22,7 @@ module.exports = class KafkaStreamConsumer {
 
             let consumer = new kafka.ConsumerGroupStream(options, Topics);
             Object.assign(this, {
+                logger: logger,
                 configuration: config,
                 isDependencyHealthy: true,
                 isThirsty: true,
@@ -33,24 +33,24 @@ module.exports = class KafkaStreamConsumer {
 
             this.consumer.on('data', function(message){
                 this.lastMessage = message;
-                logger.trace(`consumerGroupStream got message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
+                this.logger.trace(`consumerGroupStream got message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
                 this.kafkaThrottlingManager.handleIncomingMessage(message);
             }.bind(this));
 
-            this.consumer.on('error', (err) => {
-                logger.error(err, 'Kafka Error');
-            });
+            this.consumer.on('error', function(err) {
+                this.logger.error(err, 'Kafka Error');
+            }.bind(this));
 
-            this.consumer.on('close', () => {
-                logger.info('Inner ConsumerGroupStream closed');
-            });
+            this.consumer.on('close', function() {
+                this.logger.info('Inner ConsumerGroupStream closed');
+            }.bind(this));
 
             this.consumer.on('connect', function(err){
                 if (err) {
                     reject(err);
                 } else {
-                    logger.info('Kafka client is ready');
-                    logger.info('topicPayloads', this.consumer.consumerGroup.topicPayloads);
+                    this.logger.info('Kafka client is ready');
+                    this.logger.info('topicPayloads', this.consumer.consumerGroup.topicPayloads);
                     this.kafkaThrottlingManager = new KafkaThrottlingManager();
                     this.kafkaThrottlingManager.init(ThrottlingThreshold, ThrottlingCheckIntervalMs,
                         Topics, MessageFunction, this);
@@ -68,7 +68,7 @@ module.exports = class KafkaStreamConsumer {
 
     pause() {
         if (this.consumerEnabled) {
-            logger.info('Suspending Kafka consumption');
+            this.logger.info('Suspending Kafka consumption');
             this.consumerEnabled = false;
             this.consumer.pause();
         }
@@ -76,11 +76,11 @@ module.exports = class KafkaStreamConsumer {
 
     resume() {
         if (!this.isDependencyHealthy) {
-            logger.info('Not resuming consumption because dependency check returned false');
+            this.logger.info('Not resuming consumption because dependency check returned false');
         } else if (!this.isThirsty) {
-            logger.info('Not resuming consumption because too many messages in memory');
+            this.logger.info('Not resuming consumption because too many messages in memory');
         } else if (!this.shuttingDown && !this.consumerEnabled) {
-            logger.info('Resuming Kafka consumption');
+            this.logger.info('Resuming Kafka consumption');
             this.consumerEnabled = true;
             this.consumer.resume();
         }
@@ -88,7 +88,7 @@ module.exports = class KafkaStreamConsumer {
 
     closeConnection() {
         this.shuttingDown = true;
-        logger.info('Consumer is closing connection');
+        this.logger.info('Consumer is closing connection');
         this.kafkaThrottlingManager.stop();
         return new Promise((resolve, reject) => {
             this.consumer.close(function (err) {
@@ -106,14 +106,14 @@ module.exports = class KafkaStreamConsumer {
 
     validateOffsetsAreSynced() {
         if (!this.consumerEnabled) {
-            logger.info('Monitor Offset: Skipping check as the consumer is paused');
+            this.logger.info('Monitor Offset: Skipping check as the consumer is paused');
             return Promise.resolve();
         }
         return this.consumerOffsetOutOfSyncChecker.validateOffsetsAreSynced();
     }
 
     decreaseMessageInMemory() {
-        logger.warn('Not supported for autoCommit: false');
+        this.logger.warn('Not supported for autoCommit: false');
     }
 
     setDependencyHealthy(value) {

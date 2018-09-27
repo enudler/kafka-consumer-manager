@@ -1,10 +1,9 @@
 let kafka = require('kafka-node'),
-    logger = require('../helpers/logger'),
     ConsumerOffsetOutOfSyncChecker = require('../healthCheckers/consumerOffsetOutOfSyncChecker'),
     _ = require('lodash');
 
 module.exports = class KafkaConsumer {
-    init(config) {
+    init(config, logger) {
         let {FetchMaxBytes, Topics, MessageFunction, KafkaConnectionTimeout = 10000, KafkaUrl, GroupId} = config;
         return new Promise((resolve, reject) => {
             let options = {
@@ -18,6 +17,7 @@ module.exports = class KafkaConsumer {
             };
 
             Object.assign(this, {
+                logger: logger,
                 configuration: config,
                 alreadyConnected: false,
                 shuttingDown: false,
@@ -35,19 +35,19 @@ module.exports = class KafkaConsumer {
             }.bind(this));
 
             this.consumer.on('error', function (err) {
-                logger.error(err, 'Kafka Error');
-            });
+                this.logger.error(err, 'Kafka Error');
+            }.bind(this));
 
             this.consumer.on('offsetOutOfRange', function (err) {
-                logger.error(err, 'offsetOutOfRange Error');
-            });
+                this.logger.error(err, 'offsetOutOfRange Error');
+            }.bind(this));
 
             this.consumer.on('connect', function(err){
                 if (err){
                     reject(err);
                 } else {
-                    logger.info('Kafka client is ready');
-                    logger.info('topicPayloads', this.consumer.topicPayloads);
+                    this.logger.info('Kafka client is ready');
+                    this.logger.info('topicPayloads', this.consumer.topicPayloads);
                     // Consumer is ready when "connect" event is fired + consumer has topicPayload metadata
                     if (!this.alreadyConnected && this.consumer.topicPayloads.length !== 0) {
                         this.alreadyConnected = true;
@@ -67,7 +67,7 @@ module.exports = class KafkaConsumer {
 
     closeConnection() {
         this.shuttingDown = true;
-        logger.info('Consumer is closing connection');
+        this.logger.info('Consumer is closing connection');
         return new Promise((resolve, reject) => {
             this.consumer.close(function (err) {
                 if (err) {
@@ -82,7 +82,7 @@ module.exports = class KafkaConsumer {
 
     validateOffsetsAreSynced() {
         if (!this.consumerEnabled) {
-            logger.info('Monitor Offset: Skipping check as the consumer is paused');
+            this.logger.info('Monitor Offset: Skipping check as the consumer is paused');
             return Promise.resolve();
         }
 
@@ -91,7 +91,7 @@ module.exports = class KafkaConsumer {
 
     pause() {
         if (this.consumerEnabled) {
-            logger.info('Suspending Kafka consumption');
+            this.logger.info('Suspending Kafka consumption');
             this.consumerEnabled = false;
             this.consumer.pause();
         }
@@ -99,11 +99,11 @@ module.exports = class KafkaConsumer {
 
     resume() {
         if (!this.isDependencyHealthy) {
-            logger.info('Not resuming consumption because dependency check returned false');
+            this.logger.info('Not resuming consumption because dependency check returned false');
         } else if (!this.isThirsty) {
-            logger.info('Not resuming consumption because too many messages in memory');
+            this.logger.info('Not resuming consumption because too many messages in memory');
         } else if (!this.shuttingDown && !this.consumerEnabled) {
-            logger.info('Resuming Kafka consumption');
+            this.logger.info('Resuming Kafka consumption');
             this.consumerEnabled = true;
             this.consumer.resume();
         }
@@ -123,20 +123,20 @@ module.exports = class KafkaConsumer {
         }
         this.messagesInMemory++;
         if (this.consumerEnabled && this.messagesInMemory >= this.configuration.MaxMessagesInMemory) {
-            logger.info(`Reached ${this.messagesInMemory} messages (max is ${this.configuration.MaxMessagesInMemory}), pausing kafka consumers`);
+            this.logger.info(`Reached ${this.messagesInMemory} messages (max is ${this.configuration.MaxMessagesInMemory}), pausing kafka consumers`);
             this.pause();
         }
     }
 
     decreaseMessageInMemory() {
         if (!this.configuration.MaxMessagesInMemory || !this.configuration.ResumeMaxMessagesRatio) {
-            logger.warn('MaxMessagesInMemory and ResumeMaxMessagesRatio must have value to enable this feature');
+            this.logger.warn('MaxMessagesInMemory and ResumeMaxMessagesRatio must have value to enable this feature');
             return;
         }
         this.messagesInMemory--;
         if (!this.consumerEnabled && this.messagesInMemory <
             this.configuration.MaxMessagesInMemory * this.configuration.ResumeMaxMessagesRatio) {
-            logger.info(`Reached below ${this.configuration.ResumeMaxMessagesRatio}
+            this.logger.info(`Reached below ${this.configuration.ResumeMaxMessagesRatio}
             % of ${this.configuration.MaxMessagesInMemory} concurrent messages, resuming kafka`);
             this.resume();
         }

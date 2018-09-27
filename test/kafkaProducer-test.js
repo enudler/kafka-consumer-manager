@@ -1,7 +1,6 @@
 'use strict';
 
-let logger = require('../src/helpers/logger'),
-    sinon = require('sinon'),
+let sinon = require('sinon'),
     should = require('should'),
     kafka = require('kafka-node'),
     KafkaProducer = require('../src/producers/kafkaProducer'),
@@ -12,15 +11,17 @@ let sandbox,
     logTraceStub, configuration,
     logErrorStub, producerStub,
     producer, logInfoStub, producerSendStub,
-    onStub, producerEventHandlers;
+    onStub, producerEventHandlers, logger;
 
 describe('Testing kafka producer component', () => {
     before(() => {
         sandbox = sinon.sandbox.create();
-        logErrorStub = sandbox.stub(logger, 'error');
-        logInfoStub = sandbox.stub(logger, 'info');
-        logTraceStub = sandbox.stub(logger, 'trace');
+        logErrorStub = sandbox.stub();
+        logInfoStub = sandbox.stub();
+        logTraceStub = sandbox.stub();
         producerSendStub = sandbox.stub();
+        logger = {error: logErrorStub, trace: logTraceStub, info: logInfoStub};
+
         onStub = sandbox.stub();
         producerEventHandlers = {};
 
@@ -60,7 +61,7 @@ describe('Testing kafka producer component', () => {
                     producerEventHandlers.ready();
                 }, 100);
 
-                return producer.init(configuration)
+                return producer.init(configuration, logger)
                     .then(() => {
                         should(logInfoStub.args[0][0]).eql('Producer is ready');
                     });
@@ -76,7 +77,7 @@ describe('Testing kafka producer component', () => {
                     KafkaConnectionTimeout: 100
                 };
 
-                return producer.init(configuration)
+                return producer.init(configuration, logger)
                     .then(function () {
                         throw new Error('should not get here.');
                     })
@@ -108,7 +109,7 @@ describe('Testing kafka producer component', () => {
                     producerEventHandlers.ready('connect test');
                 }, 25);
 
-                await producer.init(configuration);
+                await producer.init(configuration, logger);
 
                 producerSendStub.yields(undefined, {});
 
@@ -133,7 +134,7 @@ describe('Testing kafka producer component', () => {
                     producerEventHandlers.ready('connect test');
                 }, 3);
 
-                await producer.init(configuration);
+                await producer.init(configuration, logger);
 
                 producerSendStub.yields(undefined, {});
 
@@ -160,7 +161,7 @@ describe('Testing kafka producer component', () => {
                     KafkaConnectionTimeout: 1000
                 };
 
-                await producer.init(configuration);
+                await producer.init(configuration, logger);
 
                 producerSendStub.yields(new Error('Error'));
 
