@@ -6,7 +6,7 @@ const sleep = require('util').promisify(setTimeout);
 
 let sandbox, kafkaThrottlingManager, commitFunctionStub, logInfoStub, logTraceStub,
     consumerSetThirstyStub, consumerResumeStub, consumerPauseStub,
-    kafkaStreamConsumer, commitStub, logger;
+    kafkaStreamConsumer, commitStub, logger, logErrorStub;
 
 describe('Testing kafkaThrottlingManager component', () => {
     before(() => {
@@ -132,6 +132,42 @@ describe('Testing kafkaThrottlingManager component', () => {
             await sleep(100);
             should(commitFunctionStub.calledOnce).eql(true);
             should(logTraceStub.args[0][0]).equal(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
+        });
+    });
+
+    describe('handleIncomingMessage is failing', () => {
+        before(async () => {
+            logInfoStub = sandbox.stub();
+            logTraceStub = sandbox.stub();
+            logErrorStub = sandbox.stub();
+            logger = {error: logErrorStub, trace: logTraceStub, info: logInfoStub};
+
+            commitFunctionStub = sandbox.stub();
+            kafkaStreamConsumer.commit = commitFunctionStub;
+            kafkaThrottlingManager = new KafkaThrottlingManager();
+            kafkaThrottlingManager.init(1, 5000, ['TopicA', 'TopicB'], () => Promise.reject(new Error('some message')), kafkaStreamConsumer, logger);
+        });
+
+        afterEach(() => {
+            sandbox.reset();
+        });
+
+        after(() => {
+            kafkaThrottlingManager.stop();
+            sandbox.restore();
+        });
+
+        it('handleIncomingMessage should rejected and write it to log ', async () => {
+            let message = {
+                topic: 'TopicA',
+                partition: 4,
+                msg: 'some-message',
+                offset: 1005
+            };
+            kafkaThrottlingManager.handleIncomingMessage(message);
+            await sleep(100);
+            should(commitFunctionStub.calledOnce).eql(false);
+            should(logErrorStub.args[0]).eql([new Error('some message'), 'MessageFunction was rejected']);
         });
     });
 });

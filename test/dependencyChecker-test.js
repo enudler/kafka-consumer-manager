@@ -6,15 +6,16 @@ let sinon = require('sinon'),
     KafkaConsumer = require('../src/consumers/kafkaConsumer');
 
 describe('Testing health checker', function () {
-    let sandbox, consumerPauseStub, consumerResumeStub, healthChecker, logger;
+    let sandbox, consumerPauseStub, consumerResumeStub, healthChecker, logger, logErrorStub;
     let consumer = new KafkaConsumer();
 
     before(() => {
         sandbox = sinon.sandbox.create();
         sandbox.stub(consumer, 'init');
+        logErrorStub = sandbox.stub();
         consumerPauseStub = sandbox.stub(consumer, 'pause');
         consumerResumeStub = sandbox.stub(consumer, 'resume');
-        logger = {error: sandbox.stub(), trace: sandbox.stub(), info: sandbox.stub()};
+        logger = {error: logErrorStub, trace: sandbox.stub(), info: sandbox.stub()};
     });
 
     after(() => {
@@ -123,5 +124,22 @@ describe('Testing health checker', function () {
             should(consumerPauseStub.callCount).eql(2);
             done();
         }, 225);
+    });
+
+    it('Testing health checker return reject', (done) => {
+        let configuration = {
+            ResumePauseCheckFunction: () => {
+                return Promise.reject(new Error('some message'));
+            },
+            ResumePauseIntervalMs: 50
+        };
+
+        healthChecker = new DependencyChecker();
+        healthChecker.init(consumer, configuration, logger);
+        setTimeout(() => {
+            should(consumerResumeStub.calledOnce).eql(false);
+            should(logErrorStub.args[0]).eql([new Error('some message'), 'ResumePauseCheckFunction was rejected']);
+            done();
+        }, 75);
     });
 });

@@ -42,6 +42,8 @@ function generateThrottlingQueueInstance(callbackPromise, logger) {
             console.log('off: ' + message.offset);
             this.logger.trace(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
             commitOffsetCallback(message);
+        }).catch((err) => {
+            this.logger.error(err, 'MessageFunction was rejected');
         });
     }.bind({logger}), 1);
     return queue;

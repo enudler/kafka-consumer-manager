@@ -24,6 +24,9 @@ module.exports = class DependencyChecker {
                         this.consumer.setDependencyHealthy(false);
                         this.consumer.pause();
                     }
+                })
+                .catch(err => {
+                    this.logger.error(err, 'ResumePauseCheckFunction was rejected');
                 });
         }.bind(this), this.resumePauseIntervalMs);
     }
