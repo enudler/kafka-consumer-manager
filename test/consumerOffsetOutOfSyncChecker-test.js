@@ -41,12 +41,10 @@ describe('Testing consumer offset out of sync checker', function () {
         };
         offsetStub = sandbox.stub(kafka, 'Offset').returns(offsetStub);
 
-        // offsetChecker = rewire('../src/healthCheckers/consumerOffsetOutOfSyncChecker');
         let kafkaOffsetDiffThreshold = 3;
 
-        offsetChecker = new ConsumerOffsetOutOfSyncChecker(consumerStub, kafkaOffsetDiffThreshold, logger);
-
-        // offsetChecker.init(consumerStub, configuration);
+        offsetChecker = new ConsumerOffsetOutOfSyncChecker();
+        offsetChecker.init(consumerStub, kafkaOffsetDiffThreshold, logger);
     });
 
     after(function () {
@@ -60,8 +58,6 @@ describe('Testing consumer offset out of sync checker', function () {
         it('Should resolve when no partitions data', function () {
             offsetChecker.previousConsumerReadOffset = [];
 
-            // offsetChecker.__set__('previousConsumerReadOffset', []);
-
             consumerStub.topicPayloads = [];
 
             return offsetChecker.validateOffsetsAreSynced()
@@ -72,8 +68,6 @@ describe('Testing consumer offset out of sync checker', function () {
 
         it('Should resolve when all the partitions incremented from last check', function () {
             offsetChecker.previousConsumerReadOffset = [{topic: 'A', partition: 'B', offset: 1}];
-
-            // offsetChecker.__set__('previousConsumerReadOffset', [{topic: 'A', partition: 'B', offset: 1}]);
 
             consumerStub.topicPayloads = [{topic: 'A', partition: 'B', offset: 2}];
 
@@ -116,8 +110,6 @@ describe('Testing consumer offset out of sync checker', function () {
 
             offsetChecker.previousConsumerReadOffset = [{topic: 'topicC', partition: 'partitionC', offset: 1}];
 
-            // offsetChecker.__set__('previousConsumerReadOffset', [{topic: 'topicC', partition: 'partitionC', offset: 1}]);
-
             consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 1}];
 
             return offsetChecker.validateOffsetsAreSynced()
@@ -147,12 +139,6 @@ describe('Testing consumer offset out of sync checker', function () {
                     partition: 'partitionA',
                     offset: 50
                 }, {topic: 'topicB', partition: 'partitionB', offset: 100}];
-
-            // offsetChecker.__set__('previousConsumerReadOffset', [{
-            //     topic: 'topicA',
-            //     partition: 'partitionA',
-            //     offset: 50
-            // }, {topic: 'topicB', partition: 'partitionB', offset: 100}]);
 
             consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 60}, {
                 topic: 'topicB',
@@ -186,9 +172,6 @@ describe('Testing consumer offset out of sync checker', function () {
             offsetChecker.previousConsumerReadOffset = [{topic: 'topicA', partition: 'partitionA', offset: 60},
                 {topic: 'topicB', partition: 'partitionB', offset: 100}];
 
-            // offsetChecker.__set__('previousConsumerReadOffset', [{topic: 'topicA', partition: 'partitionA', offset: 60},
-            //     {topic: 'topicB', partition: 'partitionB', offset: 100}]);
-
             consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 61},
                 {topic: 'topicB', partition: 'partitionB', offset: 100}];
 
@@ -203,12 +186,6 @@ describe('Testing consumer offset out of sync checker', function () {
         it('Should return an error when offset.fetch fails', function (done) {
             expectedError = new Error('error');
             fetchStub.yields(expectedError);
-
-            // offsetChecker.__set__('previousConsumerReadOffset', [{
-            //     topic: 'topicA',
-            //     partition: 'partitionA',
-            //     offset: 60
-            // }]);
 
             offsetChecker.previousConsumerReadOffset = [{
                 topic: 'topicA',
@@ -242,9 +219,6 @@ describe('Testing consumer offset out of sync checker', function () {
                 }
             });
 
-            // offsetChecker.__set__('previousConsumerReadOffset', [{topic: 'topicA', partition: 'partitionA', offset: 60},
-            //     {topic: 'topicB', partition: 'partitionB', offset: 100}]);
-
             offsetChecker.previousConsumerReadOffset = [{topic: 'topicA', partition: 'partitionA', offset: 60},
                 {topic: 'topicB', partition: 'partitionB', offset: 100}];
 
@@ -271,8 +245,6 @@ describe('Testing consumer offset out of sync checker', function () {
         });
 
         it('Should return an error when the consumer topics/partitions is NOT in sync', function () {
-            // offsetChecker.__set__('previousConsumerReadOffset', [{topic: 'topicA', partition: 'partitionA', offset: 60}]);
-
             offsetChecker.previousConsumerReadOffset = [{topic: 'topicA', partition: 'partitionA', offset: 60}];
 
             consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 60}];

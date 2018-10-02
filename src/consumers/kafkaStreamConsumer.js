@@ -47,14 +47,16 @@ module.exports = class KafkaStreamConsumer {
 
             this.consumer.on('connect', function(err){
                 if (err) {
-                    reject(err);
+                    this.logger.error('Error when trying to connect kafka', {errorMessage: err.message});
+                    return reject(err);
                 } else {
                     this.logger.info('Kafka client is ready');
                     this.logger.info('topicPayloads', this.consumer.consumerGroup.topicPayloads);
                     this.kafkaThrottlingManager = new KafkaThrottlingManager();
                     this.kafkaThrottlingManager.init(ThrottlingThreshold, ThrottlingCheckIntervalMs,
-                        Topics, MessageFunction, this);
-                    this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker(this.consumer.consumerGroup,
+                        Topics, MessageFunction, this, this.logger);
+                    this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker();
+                    this.consumerOffsetOutOfSyncChecker.init(this.consumer.consumerGroup,
                         config.KafkaOffsetDiffThreshold);
                     return resolve();
                 }
@@ -93,14 +95,12 @@ module.exports = class KafkaStreamConsumer {
         return new Promise((resolve, reject) => {
             this.consumer.close(function (err) {
                 if (err) {
-                    // logger.error('Error when trying to close connection with kafka', {
-                    //     errorMessage: err.message
-                    // });
+                    this.logger.error('Error when trying to close connection with kafka', {errorMessage: err.message});
                     return reject(err);
                 } else {
                     return resolve();
                 }
-            });
+            }.bind(this));
         });
     }
 
@@ -125,7 +125,7 @@ module.exports = class KafkaStreamConsumer {
     }
 
     getLastMessage(){
-        return _.cloneDeep(this.lastMessage);
+        return this.lastMessage;
     }
 
     commit(message) {

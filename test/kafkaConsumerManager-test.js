@@ -2,13 +2,16 @@
 
 let sinon = require('sinon'),
     should = require('should'),
-    KafkaConsumerManager = require('../src/kafkaConsumerManager'), //,
+    KafkaConsumerManager = require('../src/kafkaConsumerManager'),
     KafkaProducer = require('../src/producers/kafkaProducer'),
     KafkaConsumer = require('../src/consumers/kafkaConsumer'),
+    KafkaStreamConsumer = require('../src/consumers/kafkaStreamConsumer'),
     DependencyChecker = require('../src/healthCheckers/dependencyChecker'),
-    KafkaThrottlingManager = require('../src/throttling/kafkaThrottlingManager');
+    KafkaThrottlingManager = require('../src/throttling/kafkaThrottlingManager'),
+    bunyan = require('bunyan'),
+    _ = require('lodash');
 
-let fullConfiguration = {
+let MandatoryFieldsConfiguration = {
     KafkaUrl: 'url',
     GroupId: 'GroupId',
     KafkaConnectionTimeout: '1000',
@@ -16,13 +19,37 @@ let fullConfiguration = {
     Topics: ['topic-a', 'topic-b'],
     AutoCommit: true,
     MessageFunction: (msg) => {}
-    // ResumePauseCheckFunction: () => {},
-    // ResumePauseIntervalMs: 1000
+};
+
+let fullConfigurationCommitTrue = {
+    LoggerName: 'test',
+    KafkaUrl: 'url',
+    GroupId: 'GroupId',
+    KafkaConnectionTimeout: '1000',
+    KafkaOffsetDiffThreshold: '3',
+    Topics: ['topic-a', 'topic-b'],
+    AutoCommit: true,
+    // ThrottlingCheckIntervalMs: 1000,
+    // ThrottlingThreshold: 100,
+    MessageFunction: (msg) => {}
+};
+
+let fullConfigurationCommitFalse = {
+    LoggerName: 'test',
+    KafkaUrl: 'url',
+    GroupId: 'GroupId',
+    KafkaConnectionTimeout: '1000',
+    KafkaOffsetDiffThreshold: '3',
+    Topics: ['topic-a', 'topic-b'],
+    AutoCommit: false,
+    ThrottlingCheckIntervalMs: 1000,
+    ThrottlingThreshold: 100,
+    MessageFunction: (msg) => {}
 };
 
 describe('Verify mandatory params', () => {
     let sandbox, kafkaConsumerManager = new KafkaConsumerManager(), producerInitStub,
-        consumerInitStub, dependencyInitStub, throttlingInitStub;
+        consumerInitStub, dependencyInitStub, throttlingInitStub, loggerChildStub,consumerStreamInitStub;
 
     beforeEach(() => {
         producerInitStub.resolves();
@@ -35,21 +62,38 @@ describe('Verify mandatory params', () => {
         sandbox = sinon.sandbox.create();
         producerInitStub = sandbox.stub(KafkaProducer.prototype, 'init');
         consumerInitStub = sandbox.stub(KafkaConsumer.prototype, 'init');
+        consumerStreamInitStub = sandbox.stub(KafkaStreamConsumer.prototype, 'init');
         dependencyInitStub = sandbox.stub(DependencyChecker.prototype, 'init');
         throttlingInitStub = sandbox.stub(KafkaThrottlingManager.prototype, 'init');
+        loggerChildStub = sandbox.stub(bunyan.prototype, 'child');
+    });
 
-        // dependencyCheckerCtor = sandbox.createStubInstance(DependencyChecker);
+    afterEach(() => {
+        sandbox.reset();
     });
 
     after(() => {
         sandbox.restore();
     });
 
-    it('All params exists', async () => {
-        await kafkaConsumerManager.init(fullConfiguration);
+    it('All params exists - kafkaConsumer', async () => {
+        await kafkaConsumerManager.init(fullConfigurationCommitTrue);
         should(producerInitStub.calledOnce).eql(true);
         should(consumerInitStub.calledOnce).eql(true);
+        should(consumerStreamInitStub.calledOnce).eql(false);
         should(dependencyInitStub.calledOnce).eql(true);
+        should(loggerChildStub.calledOnce).eql(true);
+        should(loggerChildStub.args[0][0]).eql({consumer_name: fullConfigurationCommitTrue.LoggerName});
+    });
+
+    it('All params exists - kafkaStreamConsumer', async () => {
+        await kafkaConsumerManager.init(fullConfigurationCommitFalse);
+        should(producerInitStub.calledOnce).eql(true);
+        should(consumerInitStub.calledOnce).eql(false);
+        should(consumerStreamInitStub.calledOnce).eql(true);
+        should(dependencyInitStub.calledOnce).eql(true);
+        should(loggerChildStub.calledOnce).eql(true);
+        should(loggerChildStub.args[0][0]).eql({consumer_name: fullConfigurationCommitTrue.LoggerName});
     });
 
     it('All params are missing', async () => {
@@ -63,9 +107,9 @@ describe('Verify mandatory params', () => {
         }
     });
 
-    Object.keys(fullConfiguration).forEach(key => {
+    Object.keys(MandatoryFieldsConfiguration).forEach(key => {
         it('Test without ' + key + ' param', async () => {
-            let clonedConfig = JSON.parse(JSON.stringify(fullConfiguration));
+            let clonedConfig = _.cloneDeep(MandatoryFieldsConfiguration);
             delete clonedConfig[key];
 
             try {
@@ -82,7 +126,7 @@ describe('Verify mandatory params', () => {
     });
 
     it('ResumePauseIntervalMs exists without the ResumePauseCheckFunction should fail', async () => {
-        let fullConfigurationWithPauseResume = JSON.parse(JSON.stringify(fullConfiguration));
+        let fullConfigurationWithPauseResume = JSON.parse(JSON.stringify(MandatoryFieldsConfiguration));
         fullConfigurationWithPauseResume.ResumePauseIntervalMs = 1000;
         try {
             await kafkaConsumerManager.init(fullConfigurationWithPauseResume);
@@ -93,7 +137,7 @@ describe('Verify mandatory params', () => {
     });
 
     it('ResumePauseIntervalMs exists with the ResumePauseCheckFunction should success', async () => {
-        let fullConfigurationWithPauseResume = JSON.parse(JSON.stringify(fullConfiguration));
+        let fullConfigurationWithPauseResume = JSON.parse(JSON.stringify(MandatoryFieldsConfiguration));
         fullConfigurationWithPauseResume.ResumePauseIntervalMs = 1000;
         fullConfigurationWithPauseResume.ResumePauseCheckFunction = () => {
             return Promise.resolve();
@@ -125,10 +169,10 @@ describe('Verify export functions', () => {
         dependencyInitStub = sandbox.stub(DependencyChecker.prototype, 'init');
         throttlingInitStub = sandbox.stub(KafkaThrottlingManager.prototype, 'init');
 
-        await kafkaConsumerManager.init(fullConfiguration);
+        await kafkaConsumerManager.init(MandatoryFieldsConfiguration);
 
         let consumer = {
-            logger: {error: sandbox.stub(), trace: sandbox.stub(), info: sandbox.stub()},
+            logger: {},
             resume: resumeStub,
             pause: pauseStub,
             validateOffsetsAreSynced: validateOffsetsAreSyncedStub,

@@ -1,7 +1,7 @@
 const express = require('express');
 let bodyParser = require('body-parser');
-let kafkaManager = require('../src/kafkaConsumerManager');
-let logger = require('../src/helpers/logger');
+let KafkaManager = require('../src/kafkaConsumerManager');
+let kafkaManager = new KafkaManager();
 let configuration = {
     KafkaUrl: 'localhost:9092',
     GroupId: 'group-id',
@@ -37,7 +37,6 @@ app.post('/', (req, res) => {
     res.json(req.body);
 });
 
-
 setInterval(() => kafkaManager.validateOffsetsAreSynced(), 10000);
 app.get('/metrics', (req, res) => {
     setTimeout(() => {
@@ -53,4 +52,3 @@ kafkaManager.init(configuration)
         console.log(err);
         process.exit(1);
     });
-

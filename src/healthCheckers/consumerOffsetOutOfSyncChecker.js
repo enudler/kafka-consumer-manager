@@ -4,7 +4,7 @@ let kafka = require('kafka-node'),
     _ = require('lodash');
 
 module.exports = class ConsumerOffsetOutOfSyncChecker {
-    constructor(consumerGroup, kafkaOffsetDiffThreshold, logger) {
+    init(consumerGroup, kafkaOffsetDiffThreshold, logger){
         Object.assign(this, {
             logger: logger,
             consumer: consumerGroup,
@@ -13,7 +13,6 @@ module.exports = class ConsumerOffsetOutOfSyncChecker {
             previousConsumerReadOffset: _.cloneDeep(consumerGroup.topicPayloads)
         });
     }
-
     validateOffsetsAreSynced() {
         return new Promise((resolve, reject) => {
             if (!this.previousConsumerReadOffset) {

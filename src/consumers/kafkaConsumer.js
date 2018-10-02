@@ -44,7 +44,8 @@ module.exports = class KafkaConsumer {
 
             this.consumer.on('connect', function(err){
                 if (err){
-                    reject(err);
+                    this.logger.error('Error when trying to connect kafka', {errorMessage: err.message});
+                    return reject(err);
                 } else {
                     this.logger.info('Kafka client is ready');
                     this.logger.info('topicPayloads', this.consumer.topicPayloads);
@@ -52,7 +53,8 @@ module.exports = class KafkaConsumer {
                     if (!this.alreadyConnected && this.consumer.topicPayloads.length !== 0) {
                         this.alreadyConnected = true;
                         this.consumerEnabled = true;
-                        this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker(this.consumer,
+                        this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker();
+                        this.consumerOffsetOutOfSyncChecker.init(this.consumer,
                             this.configuration.KafkaOffsetDiffThreshold);
                         resolve();
                     }
@@ -71,12 +73,12 @@ module.exports = class KafkaConsumer {
         return new Promise((resolve, reject) => {
             this.consumer.close(function (err) {
                 if (err) {
-                    // logger.error('Error when trying to close connection with kafka', {errorMessage: err.message});
+                    this.logger.error('Error when trying to close connection with kafka', {errorMessage: err.message});
                     return reject(err);
                 } else {
                     return resolve();
                 }
-            });
+            }.bind(this));
         });
     }
 
@@ -143,6 +145,6 @@ module.exports = class KafkaConsumer {
     }
 
     getLastMessage(){
-        return _.cloneDeep(this.lastMessage);
+        return this.lastMessage;
     }
 };

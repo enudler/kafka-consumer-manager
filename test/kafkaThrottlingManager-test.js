@@ -1,19 +1,16 @@
 let sinon = require('sinon'),
-    async = require('async'),
-    KafkaStreamConsumer = require('../src/consumers/kafkaStreamConsumer'),
     should = require('should'),
     KafkaThrottlingManager = require('../src/throttling/kafkaThrottlingManager');
 
-let sandbox, kafkaThrottlingManager, commitFunctionStub, logInfoStub, logTraceStub, innerQueuePushStub,
-    asyncQueueStub, consumerSetThirstyStub, consumerResumeStub, consumerPauseStub,
-    kafkaStreamConsumer, commitStub;
+const sleep = require('util').promisify(setTimeout);
+
+let sandbox, kafkaThrottlingManager, commitFunctionStub, logInfoStub, logTraceStub,
+    consumerSetThirstyStub, consumerResumeStub, consumerPauseStub,
+    kafkaStreamConsumer, commitStub, logger;
 
 describe('Testing kafkaThrottlingManager component', () => {
     before(() => {
         sandbox = sinon.sandbox.create();
-        logInfoStub = sandbox.stub();
-        logTraceStub = sandbox.stub();
-        logger = {error: sandbox.stub(), trace: logTraceStub, info: logInfoStub};
         consumerSetThirstyStub = sandbox.stub();
         consumerResumeStub = sandbox.stub();
         consumerPauseStub = sandbox.stub();
@@ -26,9 +23,6 @@ describe('Testing kafkaThrottlingManager component', () => {
             commit: commitStub
         };
     });
-    after(() => {
-        sandbox.restore();
-    });
 
     // this describe represent one flow
     describe('Testing init and the manageQueue by interval', () => {
@@ -40,9 +34,16 @@ describe('Testing kafkaThrottlingManager component', () => {
             }, 100);
         });
 
+        before(() => {
+            logInfoStub = sandbox.stub();
+            logTraceStub = sandbox.stub();
+            logger = {error: sandbox.stub(), trace: logTraceStub, info: logInfoStub};
+        });
+
         after(() => {
-            sandbox.restore();
             kafkaThrottlingManager.stop();
+            sandbox.reset();
+            sandbox.restore();
         });
 
         it('Successful init to inner async queues', () => {
@@ -63,7 +64,7 @@ describe('Testing kafkaThrottlingManager component', () => {
             should(consumerSetThirstyStub.args[0][0]).eql(true);
             should(consumerResumeStub.calledOnce).eql(true);
             should(consumerPauseStub.callCount).eql(0);
-            sandbox.resetHistory();
+            sandbox.reset();
         });
 
         it('set number of messages to above the threshold', () => {
@@ -86,48 +87,51 @@ describe('Testing kafkaThrottlingManager component', () => {
     });
 
     describe('handleIncomingMessage method tests', () => {
-        before(() => {
+        before(async () => {
+            logInfoStub = sandbox.stub();
+            logTraceStub = sandbox.stub();
+            logger = {error: sandbox.stub(), trace: logTraceStub, info: logInfoStub};
+
             commitFunctionStub = sandbox.stub();
-            innerQueuePushStub = {
-                push: sandbox.stub(),
-                length: sandbox.stub()
-            };
-            asyncQueueStub = sandbox.stub(async, 'queue');
-            asyncQueueStub.returns(innerQueuePushStub);
+            kafkaStreamConsumer.commit = commitFunctionStub;
             kafkaThrottlingManager = new KafkaThrottlingManager();
-            kafkaThrottlingManager.init(1, 1, ['TopicA', 'TopicB'], () => Promise.resolve(), kafkaStreamConsumer, logger);
+            kafkaThrottlingManager.init(1, 5000, ['TopicA', 'TopicB'], () => Promise.resolve(), kafkaStreamConsumer, logger);
         });
 
         afterEach(() => {
-            kafkaThrottlingManager.stop();
             sandbox.reset();
         });
 
         after(() => {
+            kafkaThrottlingManager.stop();
             sandbox.restore();
         });
 
-        it('First call to handleIncomingMessage should create the right partition-queue ', () => {
+        it('First call to handleIncomingMessage should create the right partition-queue ', async () => {
             let message = {
                 topic: 'TopicA',
                 partition: 4,
-                msg: 'some-message'
+                msg: 'some-message',
+                offset: 1005
             };
             kafkaThrottlingManager.handleIncomingMessage(message);
-            should(asyncQueueStub.calledOnce).eql(true);
-            should(innerQueuePushStub.push.calledOnce).eql(true);
-            should(innerQueuePushStub.push.args[0][0]).eql(message);
+            await sleep(100);
+            should(commitFunctionStub.calledOnce).eql(true);
+            should(logTraceStub.args[0][0]).equal(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
         });
-        it('Second call to handleIncomingMessage should write to inner queue ', () => {
+        it('Second call to handleIncomingMessage should write to inner queue ', async () => {
+            sandbox.resetHistory();
+
             let message = {
                 topic: 'TopicA',
                 partition: 4,
-                msg: 'some-message'
+                msg: 'some-message',
+                offset: 1002
             };
             kafkaThrottlingManager.handleIncomingMessage(message);
-            should(asyncQueueStub.called).eql(false);
-            should(innerQueuePushStub.push.calledOnce).eql(true);
-            should(innerQueuePushStub.push.args[0][0]).eql(message);
+            await sleep(100);
+            should(commitFunctionStub.calledOnce).eql(true);
+            should(logTraceStub.args[0][0]).equal(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
         });
     });
 });

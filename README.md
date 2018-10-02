@@ -6,6 +6,7 @@
 [![NPM](https://nodei.co/npm-dl/kafka-consumer-manager.png?months=1)](https://nodei.co/npm/kafka-consumer-manager/)
 
 This package is used to to simplify the common use of kafka consumer by:
+* Support multiple kafka-consumer-manager by instance creation
 * Provides support for autoCommit: false and throttling by saving messages to queues and working messages by message per partition, (concurrency level equals to the partitions number)
 * Provides api for kafka consumer offset out of sync check by checking that the offset of the partition is synced to zookeeper
 * Accepts a promise with the business logic each consumed message should go through
@@ -23,7 +24,7 @@ npm install --save kafka-consumer-manager
 ### How to use
 
 ```js
-let kafkaConsumerManager = require('kafka-consumer-manager');
+let KafkaConsumerManager = require('kafka-consumer-manager');
 ```
 
 ```js
@@ -46,8 +47,11 @@ let configuration = {
 ```
 
 ```js   
-kafkaConsumerManager.init(configuration)
+(async () => {
+let kafkaConsumerManager = new KafkaConsumerManager()
+await kafkaConsumerManager.init(configuration)
     .then(() => {})
+    })()
 ```
 ##### Configuration
 
@@ -58,10 +62,12 @@ kafkaConsumerManager.init(configuration)
 * `Topics` &ndash; Array of topics that should be consumed.
 * `ResumePauseIntervalMs` &ndash; Interval of when to run the ResumePauseCheckFunction (Optional).
 * `ResumePauseCheckFunction` &ndash; Promise that in case of return value is true, the consumer will be resumed, if false it will be paused (Mandatory if ResumePauseIntervalMs provided). this function accepts one param (consumer).
-* `MessageFunction` &ndash; Promise that applied to each consumed message, this function accepts one param (message), please make sure to resolve only after messages is considered as done.
+* `MessageFunction` &ndash; Promise that applied to each consumed message, this function accepts one param (message), please make sure to resolve only after messages is considered as done. Don't change the original message, it may cause unstable values in return from getLastMessage function.
 * `FetchMaxBytes` &ndash; The maximum bytes to include in the message set for this partition. This helps bound the size of the response. (Default 1024^2).
 * `WriteBackDelay` &ndash; Delay the produced messages by ms. (optional).
 * `AutoCommit` &ndash; Boolean, If AutoCommit is false, the consumer will queue messages from each partition to a specific queue and will handle messages by the order and commit the offset when it's done.
+* `LoggerName` &ndash; String, the value of consumer_name field of the internal logger, if empty this field will not exist.
+
 
 ##### AutoCommit: true settings
 
@@ -75,7 +81,7 @@ kafkaConsumerManager.init(configuration)
 * `CommitEachMessage` &ndash; Boolean, If CommitEachMessage is false the commit will be each AutoCommitIntervalMs.(Default true)
 * `AutoCommitIntervalMs` &ndash; The interval in ms to make commit to the broker, relevant only if CommitEachMessage is false.(Default 5000)
 
-### kafka-consumer-manager.init(configuration)
+### await kafka-consumer-manager.init(configuration)
 
 Init the consumer and the producer, make sure to pass full configuration object else you will get exceptions.
 
@@ -87,9 +93,9 @@ Runs a check the offset of the partitions are synced and moving as expected by c
 
 The function returns Promise.
 
-### kafka-consumer-manager.closeConnection()
+### await kafka-consumer-manager.closeConnection()
 
-Closes the connection to kafka.
+Closes the connection to kafka, return Promise.
 
 ### kafka-consumer-manager.pause()
 

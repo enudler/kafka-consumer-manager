@@ -7,11 +7,11 @@ let sinon = require('sinon'),
     assert = require('assert');
 
 let sandbox,
-    HighLevelProducerStub, clientStub,
+    clientStub,
     logTraceStub, configuration,
     logErrorStub, producerStub,
     producer, logInfoStub, producerSendStub,
-    onStub, producerEventHandlers, logger;
+    producerEventHandlers, logger;
 
 describe('Testing kafka producer component', () => {
     before(() => {
@@ -22,7 +22,6 @@ describe('Testing kafka producer component', () => {
         producerSendStub = sandbox.stub();
         logger = {error: logErrorStub, trace: logTraceStub, info: logInfoStub};
 
-        onStub = sandbox.stub();
         producerEventHandlers = {};
 
         producerStub = {
@@ -35,7 +34,7 @@ describe('Testing kafka producer component', () => {
         clientStub = {'client': 'object'};
 
         sandbox.stub(kafka, 'KafkaClient').returns(clientStub);
-        HighLevelProducerStub = sandbox.stub(kafka, 'HighLevelProducer').returns(producerStub);
+        sandbox.stub(kafka, 'HighLevelProducer').returns(producerStub);
     });
 
     beforeEach(async () => {
@@ -68,7 +67,7 @@ describe('Testing kafka producer component', () => {
             });
         });
 
-        describe('When ready is not resolved', function () { // todo - dont need it because there is connection timeout
+        describe('When ready is not resolved', function () {
             it('Should reject with error', function () {
                 producer = new KafkaProducer();
 

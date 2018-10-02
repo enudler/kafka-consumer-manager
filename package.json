@@ -28,7 +28,7 @@
   "dependencies": {
     "async": "^2.6.0",
     "body-parser": "^1.18.2",
-    "bunyan": "1.8.12",
+    "bunyan": "2.0.2",
     "express": "^4.16.2",
     "istanbul": "1.0.0-alpha.2",
     "kafka-node": "2.6.1",

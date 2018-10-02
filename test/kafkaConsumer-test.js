@@ -13,7 +13,7 @@ let sandbox, consumer,
     logErrorStub, consumerStub, fetchStub,
     offsetStub, logInfoStub,
     closeStub, pauseStub, resumeStub, actionSpy,
-    validateOffsetsAreSyncedStub,logger;
+    validateOffsetsAreSyncedStub, logger;
 
 describe('Testing kafka consumer component', function () {
     before(function () {
@@ -185,27 +185,49 @@ describe('Testing kafka consumer component', function () {
             should(logInfoStub.args[2]).eql(['Resuming Kafka consumption']);
             should(resumeStub.calledOnce).eql(true);
         });
+
+        it('Testing connect error', function () {
+            // init again with fail connection
+            setTimeout(() => {
+                consumerEventHandlers.connect(new Error('fail to connect'));
+            }, 100);
+
+            let configuration = {
+                KafkaUrl: 'KafkaUrl',
+                GroupId: 'GroupId',
+                KafkaConnectionTimeout: 2000,
+                Topics: ['topic-a', 'topic-b'],
+                KafkaOffsetDiffThreshold: 3,
+                MessageFunction: sandbox.stub(),
+                MaxMessagesInMemory: 100,
+                ResumeMaxMessagesRatio: 0.25
+            };
+
+            return consumer.init(configuration, logger).should.be.rejectedWith(new Error('fail to connect')).then(() => {
+                should(logErrorStub.args[0]).eql(['Error when trying to connect kafka', {
+                    'errorMessage': 'fail to connect'
+                }]);
+
+                return consumer.closeConnection();
+            });
+        });
     });
 
     describe('Testing closeConnection method', function () {
         it('should write to info log and close consumer cause there is no error', async function () {
-            consumer.close = (cb) => { cb() };
             await consumer.closeConnection();
             should(closeStub.called).eql(true);
             should(logInfoStub.args[2][0]).eql('Consumer is closing connection');
         });
-        it('should write to error log and close consumer', async function () {
+        it('should write to error log and close consumer', function () {
             let err = new Error('close was failing');
-            consumer.close = (cb) => { cb(_.cloneDeep(err)) };
-            closeStub.returns('err');
-            try {
-                await consumer.closeConnection();
-                assert.fail('close connection need to fail');
-            } catch (err){
-                should(err).eql(err);
-            }
-            // should(closeStub.called).eql(true);
-            //                should(logErrorStub.args[0][0]).eql('Error when trying to close connection with kafka');
+            closeStub.returns(err);
+
+            return consumer.closeConnection().should.be.rejectedWith(err).then(() => {
+                should(logErrorStub.args[0]).eql(['Error when trying to close connection with kafka', {
+                    'errorMessage': 'close was failing'
+                }]);
+            });
         });
     });
 

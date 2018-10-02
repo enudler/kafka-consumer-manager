@@ -3,16 +3,16 @@
 let kafka = require('kafka-node'),
     sinon = require('sinon'),
     KafkaThrottlingManager = require('../src/throttling/kafkaThrottlingManager'),
-    ConsumerOffsetOutOfSyncChecker = require('../src/healthCheckers/consumerOffsetOutOfSyncChecker'),
     should = require('should'),
     KafkaStreamConsumer = require('../src/consumers/kafkaStreamConsumer'),
     assert = require('assert'),
+    ConsumerOffsetOutOfSyncCheckerStub = require('../src/healthCheckers/consumerOffsetOutOfSyncChecker'),
     _ = require('lodash');
 
 let sandbox, logErrorStub, logTraceStub, logInfoStub, consumerGroupStreamStub,
     consumerStreamStub, consumerEventHandlers, resumeStub, pauseStub, consumer,
     promiseActionSpy, baseConfiguration, handleIncomingMessageStub, commitStub,
-    validateOffsetsAreSyncedStub, logger;
+    validateOffsetsAreSyncedStub, logger, kafkaThrottlingManagerStub, offsetOutOfSyncCheckerStub;
 
 describe('Testing events method', function () {
     before(function(){
@@ -21,11 +21,11 @@ describe('Testing events method', function () {
         logInfoStub = sandbox.stub();
         logTraceStub = sandbox.stub();
         logger = {error: logErrorStub, trace: logTraceStub, info: logInfoStub};
-
+        offsetOutOfSyncCheckerStub = sandbox.stub(ConsumerOffsetOutOfSyncCheckerStub.prototype, 'init');
         handleIncomingMessageStub = sandbox.stub(KafkaThrottlingManager.prototype, 'handleIncomingMessage');
         consumerGroupStreamStub = sandbox.stub(kafka, 'ConsumerGroupStream');
         sandbox.stub(kafka, 'Offset').returns({});
-        sandbox.stub(KafkaThrottlingManager.prototype, 'init');
+        kafkaThrottlingManagerStub = sandbox.stub(KafkaThrottlingManager.prototype, 'init');
     });
     beforeEach(function () {
         consumerEventHandlers = {};
@@ -62,7 +62,21 @@ describe('Testing events method', function () {
     });
 
     describe(' on connect event', function() {
-        it('fail to connect', async function () {
+        it('fail to connect - error', function () {
+            setTimeout(() => {
+                consumerEventHandlers.connect(new Error('fail to connect'));
+            }, 100);
+
+            return consumer.init(baseConfiguration, logger).should.be.rejectedWith(new Error('fail to connect')).then(() => {
+                should(kafkaThrottlingManagerStub.callCount).eql(0);
+                should(offsetOutOfSyncCheckerStub.callCount).eql(0);
+                should(logErrorStub.args[0]).eql(['Error when trying to connect kafka', {
+                    'errorMessage': 'fail to connect'
+                }]);
+            });
+        });
+
+        it('fail to connect - timeout', async function () {
             let baseConfiguration = {
                 KafkaUrl: 'KafkaUrl',
                 GroupId: 'GroupId',
@@ -77,6 +91,8 @@ describe('Testing events method', function () {
                 assert.fail('consumer connect should fail');
             } catch (err) {
                 should(err.message).equal('Failed to connect to kafka after 1000 ms.');
+                should(kafkaThrottlingManagerStub.callCount).eql(0);
+                should(offsetOutOfSyncCheckerStub.callCount).eql(0);
             }
         });
         it('testing right configuration was called, full configuration', async function () {
@@ -113,6 +129,8 @@ describe('Testing events method', function () {
             should(consumerGroupStreamStub.args[0][1]).eql(['topic-a', 'topic-b']);
             should(consumerGroupStreamStub.args[0][0]).eql(optionsExpected);
             should(logInfoStub.args[0]).eql(['Kafka client is ready']);
+            should(kafkaThrottlingManagerStub.callCount).eql(1);
+            should(offsetOutOfSyncCheckerStub.callCount).eql(1);
         });
         it('testing right configuration was called, only mandatory configuration', async function () {
             let baseConfiguration = {
@@ -145,6 +163,9 @@ describe('Testing events method', function () {
 
             should(consumerGroupStreamStub.args[0][1]).eql(['topic-a', 'topic-b']);
             should(consumerGroupStreamStub.args[0][0]).eql(optionsExpected);
+            should(logInfoStub.args[0]).eql(['Kafka client is ready']);
+            should(kafkaThrottlingManagerStub.callCount).eql(1);
+            should(offsetOutOfSyncCheckerStub.callCount).eql(1);
         });
     });
 
@@ -252,7 +273,7 @@ describe('Testing commit, pause and resume  methods', function () {
 
     it('Testing resume function handling - dependency not healthy', async function () {
         setTimeout(() => { consumerEventHandlers.connect() }, 150);
-        await consumer.init(baseConfiguration,logger);
+        await consumer.init(baseConfiguration, logger);
         consumer.setThirsty(true);
         consumer.setDependencyHealthy(false);
         consumer.resume();
@@ -458,17 +479,11 @@ describe('Testing closeConnection method', function () {
         };
         consumerStreamStub.close = (cb) => { cb(_.cloneDeep(error)) };
         consumerGroupStreamStub.returns(consumerStreamStub);
-        try {
-            await consumer.closeConnection();
-            assert.fail('Close connection should fail');
-        } catch (err){
-            should(logInfoStub.callCount).equal(3);
-            sinon.assert.calledWithExactly(logInfoStub, 'Consumer is closing connection');
-            // sinon.assert.calledOnce(logErrorStub);
-            should(err).eql(error);
-            // sinon.assert.calledWithExactly(logErrorStub, 'Error when trying to close connection with kafka', {
-            //     errorMessage: 'error message'
-            // });
-        }
+
+        return consumer.closeConnection().should.be.rejectedWith(error).then(() => {
+            should(logErrorStub.args[0]).eql(['Error when trying to close connection with kafka', {
+                'errorMessage': 'error message'
+            }]);
+        });
     });
 });
