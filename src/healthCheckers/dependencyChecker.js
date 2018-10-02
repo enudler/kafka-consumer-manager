@@ -9,18 +9,19 @@ module.exports = class DependencyChecker {
             logger: logger,
             resumePauseCheckFunction: config.ResumePauseCheckFunction,
             resumePauseIntervalMs: config.ResumePauseIntervalMs,
-            consumer: consumer
+            consumer: consumer,
+            state: true
         });
 
         this.intervalId = setInterval(function(){
             this.resumePauseCheckFunction(this.consumer)
                 .then((shouldResume) => {
                     if (shouldResume) {
-                        this.logger.info('ran ResumePauseCheckFunction and got should resume. will try to resume consumer if it was stopped');
+                        this.logger.trace('ran ResumePauseCheckFunction and got should resume. will try to resume consumer if it was stopped');
                         this.consumer.setDependencyHealthy(true);
                         this.consumer.resume();
                     } else {
-                        this.logger.info('ran ResumePauseCheckFunction and got should pause, will pause consumer if it was running');
+                        this.logger.trace('ran ResumePauseCheckFunction and got should pause, will pause consumer if it was running');
                         this.consumer.setDependencyHealthy(false);
                         this.consumer.pause();
                     }
