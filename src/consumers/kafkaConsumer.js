@@ -55,7 +55,7 @@ module.exports = class KafkaConsumer {
                         this.consumerEnabled = true;
                         this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker();
                         this.consumerOffsetOutOfSyncChecker.init(this.consumer,
-                            this.configuration.KafkaOffsetDiffThreshold);
+                            this.configuration.KafkaOffsetDiffThreshold, this.logger);
                         resolve();
                     }
                 }

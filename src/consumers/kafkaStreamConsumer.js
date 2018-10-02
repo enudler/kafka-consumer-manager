@@ -57,7 +57,7 @@ module.exports = class KafkaStreamConsumer {
                         Topics, MessageFunction, this, this.logger);
                     this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker();
                     this.consumerOffsetOutOfSyncChecker.init(this.consumer.consumerGroup,
-                        config.KafkaOffsetDiffThreshold);
+                        config.KafkaOffsetDiffThreshold, this.logger);
                     return resolve();
                 }
             }.bind(this));
