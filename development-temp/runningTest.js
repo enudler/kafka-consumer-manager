@@ -1,5 +1,6 @@
 'use-strict';
-let manager = require('../src/kafkaConsumerManager');
+let KafkaConsumerManager = require('../src/kafkaConsumerManager');
+let manager = new KafkaConsumerManager();
 
 let configuration = {
     KafkaUrl: 'localhost:9092',
@@ -7,7 +8,10 @@ let configuration = {
     KafkaConnectionTimeout: 5000,
     KafkaOffsetDiffThreshold: 3,
     Topics: ['kafka-test3'],
+    AutoCommit: false,
     ResumePauseIntervalMs: 30000,
+    ThrottlingThreshold: 100,
+    ThrottlingCheckIntervalMs: 1000,
     ResumePauseCheckFunction: () => {
         return true;
     },

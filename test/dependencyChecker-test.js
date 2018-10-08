@@ -1,22 +1,21 @@
 'use strict';
 
 let sinon = require('sinon'),
-    should = require('should');
+    should = require('should'),
+    DependencyChecker = require('../src/healthCheckers/dependencyChecker'),
+    KafkaConsumer = require('../src/consumers/kafkaConsumer');
 
 describe('Testing health checker', function () {
-    let sandbox, consumerPauseStub, consumerResumeStub;
-    let consumer = require('../src/consumers/kafkaConsumer');
-    let healthChecker = require('../src/healthCheckers/dependencyChecker');
+    let sandbox, consumerPauseStub, consumerResumeStub, healthChecker, logger, logErrorStub;
+    let consumer = new KafkaConsumer();
 
     before(() => {
         sandbox = sinon.sandbox.create();
         sandbox.stub(consumer, 'init');
+        logErrorStub = sandbox.stub();
         consumerPauseStub = sandbox.stub(consumer, 'pause');
         consumerResumeStub = sandbox.stub(consumer, 'resume');
-    });
-
-    beforeEach(() => {
-        sandbox.reset();
+        logger = {error: logErrorStub, trace: sandbox.stub(), info: sandbox.stub()};
     });
 
     after(() => {
@@ -25,14 +24,15 @@ describe('Testing health checker', function () {
 
     afterEach(() => {
         healthChecker.stop();
+        sandbox.reset();
     });
 
     it('Testing health checker is not configured - health checker disabled', (done) => {
         let configuration = {
         };
 
-        healthChecker.init(consumer, configuration);
-
+        healthChecker = new DependencyChecker();
+        healthChecker.init(consumer, configuration, logger);
         setTimeout(() => {
             should(consumerResumeStub.called).eql(false);
             done();
@@ -48,8 +48,8 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
-        healthChecker.init(consumer, configuration);
-
+        healthChecker = new DependencyChecker();
+        healthChecker.init(consumer, configuration, logger);
         setTimeout(() => {
             should(consumerResumeStub.calledOnce).eql(true);
             done();
@@ -64,7 +64,8 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
-        healthChecker.init(consumer, configuration);
+        healthChecker = new DependencyChecker();
+        healthChecker.init(consumer, configuration, logger);
 
         setTimeout(() => {
             should(consumerResumeStub.callCount).eql(3);
@@ -80,7 +81,8 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
-        healthChecker.init(consumer, configuration);
+        healthChecker = new DependencyChecker();
+        healthChecker.init(consumer, configuration, logger);
 
         setTimeout(() => {
             should(consumerPauseStub.calledOnce).eql(true);
@@ -96,7 +98,8 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
-        healthChecker.init(consumer, configuration);
+        healthChecker = new DependencyChecker();
+        healthChecker.init(consumer, configuration, logger);
 
         setTimeout(() => {
             should(consumerPauseStub.callCount).eql(3);
@@ -113,12 +116,30 @@ describe('Testing health checker', function () {
             ResumePauseIntervalMs: 50
         };
 
-        healthChecker.init(consumer, configuration);
+        healthChecker = new DependencyChecker();
+        healthChecker.init(consumer, configuration, logger);
 
         setTimeout(() => {
             should(consumerResumeStub.callCount).eql(2);
             should(consumerPauseStub.callCount).eql(2);
             done();
         }, 225);
+    });
+
+    it('Testing health checker return reject', (done) => {
+        let configuration = {
+            ResumePauseCheckFunction: () => {
+                return Promise.reject(new Error('some message'));
+            },
+            ResumePauseIntervalMs: 50
+        };
+
+        healthChecker = new DependencyChecker();
+        healthChecker.init(consumer, configuration, logger);
+        setTimeout(() => {
+            should(consumerResumeStub.calledOnce).eql(false);
+            should(logErrorStub.args[0]).eql([new Error('some message'), 'ResumePauseCheckFunction was rejected']);
+            done();
+        }, 75);
     });
 });

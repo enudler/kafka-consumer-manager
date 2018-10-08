@@ -1,48 +1,55 @@
 'use-strict';
 
-let async = require('async'),
-    logger = require('../helpers/logger');
-let messagesInMemoryThreshold, commitFunction, innerQueues, callbackPromise, kafkaConsumer;
+let async = require('async');
 
-function init(threshold, interval, topics, promise, commit) {
-    kafkaConsumer = require('../consumers/kafkaStreamConsumer');
-    messagesInMemoryThreshold = threshold;
-    let intervalId = setInterval(() => {
-        manageQueues();
-    }, interval);
+module.exports = class KafkaThrottlingManager {
+    init(messagesInMemoryThreshold, interval, topics, callbackPromise, kafkaStreamConsumer, logger){
+        Object.assign(this, {
+            logger: logger,
+            kafkaStreamConsumer: kafkaStreamConsumer,
+            messagesInMemoryThreshold: messagesInMemoryThreshold,
+            callbackPromise: callbackPromise,
+            innerQueues: {}
+        });
+        topics.forEach(topic => {
+            this.innerQueues[topic] = {};
+        });
 
-    innerQueues = {};
-    topics.forEach(topic => {
-        innerQueues[topic] = {};
-    });
-    callbackPromise = promise;
-    commitFunction = commit;
-    return intervalId;
-}
+        this.intervalId = setInterval(function(){
+            manageQueues(this.kafkaStreamConsumer, this.messagesInMemoryThreshold, this.innerQueues, this.logger);
+        }.bind(this), interval);
+    }
 
-function generateThrottlingQueueInstance() {
+    handleIncomingMessage(message){
+        let partition = message.partition;
+        let topic = message.topic;
+        if (!this.innerQueues[topic][partition]) {
+            this.innerQueues[topic][partition] = generateThrottlingQueueInstance(this.callbackPromise, this.logger);
+        }
+        this.innerQueues[topic][partition].push(message, () => {
+            this.kafkaStreamConsumer.commit(message);
+        });
+    }
+
+    stop(){
+        clearInterval(this.intervalId);
+    }
+};
+
+function generateThrottlingQueueInstance(callbackPromise, logger) {
     let queue = async.queue(function (message, commitOffsetCallback) {
         return callbackPromise(message).then(() => {
-            logger.trace(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
+            console.log('off: ' + message.offset);
+            this.logger.trace(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
             commitOffsetCallback(message);
+        }).catch((err) => {
+            this.logger.error(err, 'MessageFunction was rejected');
         });
-    }, 1);
+    }.bind({logger}), 1);
     return queue;
 }
 
-function handleIncomingMessage(message) {
-    let partition = message.partition;
-    let topic = message.topic;
-    if (!innerQueues[topic][partition]) {
-        innerQueues[topic][partition] = generateThrottlingQueueInstance();
-    }
-    innerQueues[topic][partition].push(message, () => {
-        commitFunction(message);
-    });
-
-}
-
-function getQueueLengthsByTopic() {
+function getQueueLengthsByTopic(innerQueues) {
     let queueSizesByTopic = {};
     Object.keys(innerQueues).forEach(topic => {
         let specificTopicQueueSizes = [];
@@ -54,9 +61,9 @@ function getQueueLengthsByTopic() {
     return queueSizesByTopic;
 }
 
-function manageQueues() {
+function manageQueues(kafkaStreamConsumer, messagesInMemoryThreshold, innerQueues, logger) {
     logger.trace('managing queues..');
-    let lengthsByTopic = getQueueLengthsByTopic();
+    let lengthsByTopic = getQueueLengthsByTopic(innerQueues);
     let totalMessagesInQueues = 0;
     Object.keys(lengthsByTopic).forEach(topic => {
         totalMessagesInQueues += lengthsByTopic[topic].reduce((a, b) => a + b, 0);
@@ -64,11 +71,6 @@ function manageQueues() {
 
     logger.trace('Total messages in queues are: ' + totalMessagesInQueues);
     let shouldResume = totalMessagesInQueues < messagesInMemoryThreshold;
-    kafkaConsumer.setThirsty(shouldResume);
-    shouldResume ? kafkaConsumer.resume() : kafkaConsumer.pause();
+    kafkaStreamConsumer.setThirsty(shouldResume);
+    shouldResume ? kafkaStreamConsumer.resume() : kafkaStreamConsumer.pause();
 }
-
-module.exports = {
-    init,
-    handleIncomingMessage
-};
