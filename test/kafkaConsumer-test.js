@@ -186,7 +186,7 @@ describe('Testing kafka consumer component', function () {
             should(resumeStub.calledOnce).eql(true);
         });
 
-        it('Testing connect error', function () {
+        it('Testing connect - connect error', function () {
             // init again with fail connection
             setTimeout(() => {
                 consumerEventHandlers.connect(new Error('fail to connect'));
@@ -208,6 +208,28 @@ describe('Testing kafka consumer component', function () {
                     'errorMessage': 'fail to connect'
                 }]);
 
+                return consumer.closeConnection();
+            });
+        });
+
+        it('fail to connect - error event', function () {
+            setTimeout(() => {
+                consumerEventHandlers.error(new Error('fail to connect'));
+            }, 100);
+
+            let configuration = {
+                KafkaUrl: 'KafkaUrl',
+                GroupId: 'GroupId',
+                KafkaConnectionTimeout: 2000,
+                Topics: ['topic-a', 'topic-b'],
+                KafkaOffsetDiffThreshold: 3,
+                MessageFunction: sandbox.stub(),
+                MaxMessagesInMemory: 100,
+                ResumeMaxMessagesRatio: 0.25
+            };
+
+            return consumer.init(configuration, logger).should.be.rejectedWith(new Error('fail to connect')).then(() => {
+                should(logErrorStub.args[0]).eql([new Error('fail to connect'), 'Kafka Error']);
                 return consumer.closeConnection();
             });
         });

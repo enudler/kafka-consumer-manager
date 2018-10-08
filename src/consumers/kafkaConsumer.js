@@ -36,6 +36,7 @@ module.exports = class KafkaConsumer {
 
             this.consumer.on('error', function (err) {
                 this.logger.error(err, 'Kafka Error');
+                return reject(err);
             }.bind(this));
 
             this.consumer.on('offsetOutOfRange', function (err) {

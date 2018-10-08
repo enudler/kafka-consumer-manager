@@ -39,6 +39,7 @@ module.exports = class KafkaStreamConsumer {
 
             this.consumer.on('error', function(err) {
                 this.logger.error(err, 'Kafka Error');
+                return reject(err);
             }.bind(this));
 
             this.consumer.on('close', function() {
