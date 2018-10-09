@@ -5,10 +5,10 @@ let kafka = require('kafka-node'),
 
 module.exports = class KafkaStreamConsumer {
     init(config, logger){
-        return new Promise((resolve, reject) => {
-            let {KafkaUrl, GroupId, Topics, MessageFunction, FetchMaxBytes,
-                AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000} = config;
+        let {KafkaUrl, GroupId, Topics, MessageFunction, FetchMaxBytes,
+            AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000} = config;
 
+        return new Promise((resolve, reject) => {
             let options = {
                 kafkaHost: KafkaUrl,
                 autoCommit: false,
@@ -53,12 +53,6 @@ module.exports = class KafkaStreamConsumer {
                 } else {
                     this.logger.info('Kafka client is ready');
                     this.logger.info('topicPayloads', this.consumer.consumerGroup.topicPayloads);
-                    this.kafkaThrottlingManager = new KafkaThrottlingManager();
-                    this.kafkaThrottlingManager.init(ThrottlingThreshold, ThrottlingCheckIntervalMs,
-                        Topics, MessageFunction, this, this.logger);
-                    this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker();
-                    this.consumerOffsetOutOfSyncChecker.init(this.consumer.consumerGroup,
-                        config.KafkaOffsetDiffThreshold, this.logger);
                     return resolve();
                 }
             }.bind(this));
@@ -66,6 +60,14 @@ module.exports = class KafkaStreamConsumer {
             setTimeout(function() {
                 return reject(new Error(`Failed to connect to kafka after ${KafkaConnectionTimeout} ms.`));
             }, KafkaConnectionTimeout);
+        }).then(() => {
+            // create members
+            this.kafkaThrottlingManager = new KafkaThrottlingManager();
+            this.kafkaThrottlingManager.init(ThrottlingThreshold, ThrottlingCheckIntervalMs,
+                Topics, MessageFunction, this, this.logger);
+            this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker();
+            this.consumerOffsetOutOfSyncChecker.init(this.consumer.consumerGroup,
+                config.KafkaOffsetDiffThreshold, this.logger);
         });
     }
 
