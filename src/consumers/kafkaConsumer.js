@@ -54,9 +54,6 @@ module.exports = class KafkaConsumer {
                     if (!this.alreadyConnected && this.consumer.topicPayloads.length !== 0) {
                         this.alreadyConnected = true;
                         this.consumerEnabled = true;
-                        this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker();
-                        this.consumerOffsetOutOfSyncChecker.init(this.consumer,
-                            this.configuration.KafkaOffsetDiffThreshold, this.logger);
                         resolve();
                     }
                 }
@@ -65,6 +62,10 @@ module.exports = class KafkaConsumer {
             setTimeout(function() {
                 reject(new Error(`Failed to connect to kafka after ${KafkaConnectionTimeout} ms.`));
             }, KafkaConnectionTimeout);
+        }).then(() => {
+            this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker();
+            this.consumerOffsetOutOfSyncChecker.init(this.consumer,
+                this.configuration.KafkaOffsetDiffThreshold, this.logger);
         });
     }
 
