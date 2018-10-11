@@ -6,7 +6,7 @@ let bunyanLogger = require('./helpers/logger');
 let _ = require('lodash');
 
 module.exports = class KafkaConsumerManager {
-    init(configuration) {
+    async init(configuration) {
         let mandatoryVars = [
             'KafkaUrl',
             'GroupId',
@@ -46,12 +46,9 @@ module.exports = class KafkaConsumerManager {
             _dependencyChecker: new DependencyChecker()
         });
 
-        this._dependencyChecker.init(chosenConsumer, configuration, logger);
-
-        return this._producer.init(configuration, logger)
-            .then(() => {
-                return this._chosenConsumer.init(configuration, logger);
-            });
+        await this._producer.init(configuration, logger)
+        await this._chosenConsumer.init(configuration, logger);
+        await this._dependencyChecker.init(chosenConsumer, configuration, logger);
     }
 
     validateOffsetsAreSynced() {
