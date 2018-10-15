@@ -40,8 +40,8 @@ let configuration = {
         },
         MessageFunction: (msg) => { return handleMessage(msg) },
         MaxMessagesInMemory: 100,
-        ResumeMaxMessagesRatio: 0.25
-        
+        ResumeMaxMessagesRatio: 0.25,
+        CreateProducer: false
     };
 
 ```
@@ -67,6 +67,7 @@ await kafkaConsumerManager.init(configuration)
 * `WriteBackDelay` &ndash; Delay the produced messages by ms. (optional).
 * `AutoCommit` &ndash; Boolean, If AutoCommit is false, the consumer will queue messages from each partition to a specific queue and will handle messages by the order and commit the offset when it's done.
 * `LoggerName` &ndash; String, the value of consumer_name field of the internal logger, if empty this field will not exist.
+* `CreateProducer` &ndash; Boolean, If CreateProducer is true it will create Producer instance.(Default true)
 
 
 ##### AutoCommit: true settings

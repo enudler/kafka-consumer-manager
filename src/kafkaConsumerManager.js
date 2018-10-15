@@ -38,15 +38,17 @@ module.exports = class KafkaConsumerManager {
 
         let loggerChild = {consumer_name: configuration.LoggerName} || {};
         let logger = bunyanLogger.child(loggerChild);
+        let createProducer = _.get(configuration, 'CreateProducer', true);
 
         Object.assign(this, {
+            _createProducer: createProducer,
             _logger: logger,
             _chosenConsumer: chosenConsumer,
             _producer: new KafkaProducer(),
             _dependencyChecker: new DependencyChecker()
         });
 
-        await this._producer.init(configuration, logger)
+        if (createProducer) await this._producer.init(configuration, logger);
         await this._chosenConsumer.init(configuration, logger);
         await this._dependencyChecker.init(chosenConsumer, configuration, logger);
     }
@@ -71,7 +73,11 @@ module.exports = class KafkaConsumerManager {
         return this._chosenConsumer.decreaseMessageInMemory();
     }
     send() {
-        return this._producer.send();
+        if (this._createProducer){
+            return this._producer.send();
+        } else {
+            this._logger.warn('Not supported for CreateProducer:false');
+        }
     }
 
     getLastMessage() {

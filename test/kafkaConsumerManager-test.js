@@ -147,6 +147,19 @@ describe('Verify mandatory params', () => {
         };
         await kafkaConsumerManager.init(fullConfigurationWithPauseResume);
     });
+
+    it('CreateProducer equal false', async () => {
+        let fullConfigurationWithoutProducer = _.cloneDeep(fullConfigurationCommitTrue);
+        fullConfigurationWithoutProducer.CreateProducer = false;
+
+        await kafkaConsumerManager.init(fullConfigurationWithoutProducer);
+        should(producerInitStub.calledOnce).eql(false);
+        should(consumerInitStub.calledOnce).eql(true);
+        should(consumerStreamInitStub.calledOnce).eql(false);
+        should(dependencyInitStub.calledOnce).eql(true);
+        should(loggerChildStub.calledOnce).eql(true);
+        should(loggerChildStub.args[0][0]).eql({consumer_name: fullConfigurationCommitTrue.LoggerName});
+    });
 });
 
 describe('Verify export functions', () => {
