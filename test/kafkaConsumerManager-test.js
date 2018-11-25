@@ -18,7 +18,7 @@ let MandatoryFieldsConfiguration = {
     KafkaOffsetDiffThreshold: '3',
     Topics: ['topic-a', 'topic-b'],
     AutoCommit: true,
-    MessageFunction: (msg) => {}
+    MessageFunction: (msg) => { }
 };
 
 let fullConfigurationCommitTrue = {
@@ -31,7 +31,7 @@ let fullConfigurationCommitTrue = {
     AutoCommit: true,
     // ThrottlingCheckIntervalMs: 1000,
     // ThrottlingThreshold: 100,
-    MessageFunction: (msg) => {}
+    MessageFunction: (msg) => { }
 };
 
 let fullConfigurationCommitFalse = {
@@ -44,12 +44,12 @@ let fullConfigurationCommitFalse = {
     AutoCommit: false,
     ThrottlingCheckIntervalMs: 1000,
     ThrottlingThreshold: 100,
-    MessageFunction: (msg) => {}
+    MessageFunction: (msg) => { }
 };
 
 describe('Verify mandatory params', () => {
     let sandbox, kafkaConsumerManager = new KafkaConsumerManager(), producerInitStub,
-        consumerInitStub, dependencyInitStub, throttlingInitStub, loggerChildStub,consumerStreamInitStub;
+        consumerInitStub, dependencyInitStub, throttlingInitStub, loggerChildStub, consumerStreamInitStub;
 
     beforeEach(() => {
         producerInitStub.resolves();
@@ -83,7 +83,8 @@ describe('Verify mandatory params', () => {
         should(consumerStreamInitStub.calledOnce).eql(false);
         should(dependencyInitStub.calledOnce).eql(true);
         should(loggerChildStub.calledOnce).eql(true);
-        should(loggerChildStub.args[0][0]).eql({consumer_name: fullConfigurationCommitTrue.LoggerName});
+        should(loggerChildStub.args[0][0]).eql({ consumer_name: fullConfigurationCommitTrue.LoggerName });
+        should(kafkaConsumerManager).have.property('emit');
     });
 
     it('All params exists - kafkaStreamConsumer', async () => {
@@ -93,7 +94,8 @@ describe('Verify mandatory params', () => {
         should(consumerStreamInitStub.calledOnce).eql(true);
         should(dependencyInitStub.calledOnce).eql(true);
         should(loggerChildStub.calledOnce).eql(true);
-        should(loggerChildStub.args[0][0]).eql({consumer_name: fullConfigurationCommitTrue.LoggerName});
+        should(loggerChildStub.args[0][0]).eql({ consumer_name: fullConfigurationCommitTrue.LoggerName });
+        should(kafkaConsumerManager).have.property('emit');
     });
 
     it('All params are missing', async () => {
@@ -158,7 +160,7 @@ describe('Verify mandatory params', () => {
         should(consumerStreamInitStub.calledOnce).eql(false);
         should(dependencyInitStub.calledOnce).eql(true);
         should(loggerChildStub.calledOnce).eql(true);
-        should(loggerChildStub.args[0][0]).eql({consumer_name: fullConfigurationCommitTrue.LoggerName});
+        should(loggerChildStub.args[0][0]).eql({ consumer_name: fullConfigurationCommitTrue.LoggerName });
     });
 });
 
@@ -214,5 +216,58 @@ describe('Verify export functions', () => {
 
         kafkaConsumerManager.finishedHandlingMessage();
         should(decreaseMessageInMemoryStub.calledOnce).eql(true);
+    });
+});
+
+describe('Verify emitter', () => {
+    let sandbox;
+    let kafkaConsumerManager = new KafkaConsumerManager();
+    let producerInitStub,
+        emitKafkaManagerStub,
+        consumerInitStub, dependencyInitStub,
+        throttlingInitStub,
+        loggerChildStub,
+        consumerStreamInitStub;
+
+    beforeEach(() => {
+        producerInitStub.resolves();
+        consumerInitStub.resolves();
+        dependencyInitStub.returns({});
+        throttlingInitStub.returns({});
+    });
+
+    before(() => {
+        sandbox = sinon.sandbox.create();
+        producerInitStub = sandbox.stub(KafkaProducer.prototype, 'init');
+        consumerInitStub = sandbox.stub(KafkaConsumer.prototype, 'init');
+        consumerStreamInitStub = sandbox.stub(KafkaStreamConsumer.prototype, 'init');
+        dependencyInitStub = sandbox.stub(DependencyChecker.prototype, 'init');
+        throttlingInitStub = sandbox.stub(KafkaThrottlingManager.prototype, 'init');
+        loggerChildStub = sandbox.stub(bunyan.prototype, 'child');
+        emitKafkaManagerStub = sandbox.stub(KafkaConsumerManager.prototype, 'emit');
+    });
+
+    afterEach(() => {
+        sandbox.reset();
+    });
+
+    after(() => {
+        sandbox.restore();
+    });
+
+    it('verify kafkaConsumer emitter', async () => {
+        await kafkaConsumerManager.init(fullConfigurationCommitTrue);
+        let err = new Error('test');
+        kafkaConsumerManager._chosenConsumer.emit('error', err);
+        should(emitKafkaManagerStub.calledOnce).equal(true);
+        should(emitKafkaManagerStub.args[0][1]).eql(err);
+    });
+
+    it('verify kafkaStreamConsumer emitter', async () => {
+        await kafkaConsumerManager.init(fullConfigurationCommitFalse);
+        let err = new Error('test');
+        kafkaConsumerManager._chosenConsumer.emit('error', err);
+        should(emitKafkaManagerStub.calledOnce).equal(true);
+        should(emitKafkaManagerStub.args[0][1]).eql(err);
     });
 });

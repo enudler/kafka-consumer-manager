@@ -2,10 +2,11 @@ let KafkaProducer = require('./producers/kafkaProducer');
 let KafkaConsumer = require('./consumers/kafkaConsumer');
 let KafkaStreamConsumer = require('./consumers/kafkaStreamConsumer');
 let DependencyChecker = require('./healthCheckers/dependencyChecker');
+let EventEmitter = require('events').EventEmitter;
 let bunyanLogger = require('./helpers/logger');
 let _ = require('lodash');
 
-module.exports = class KafkaConsumerManager {
+module.exports = class KafkaConsumerManager extends EventEmitter {
     async init(configuration) {
         let mandatoryVars = [
             'KafkaUrl',
@@ -51,6 +52,10 @@ module.exports = class KafkaConsumerManager {
         if (createProducer) await this._producer.init(configuration, logger);
         await this._chosenConsumer.init(configuration, logger);
         await this._dependencyChecker.init(chosenConsumer, configuration, logger);
+
+        this._chosenConsumer.on('error', (err) => {
+            this.emit('error', err);
+        });
     }
 
     validateOffsetsAreSynced() {

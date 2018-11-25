@@ -1,8 +1,9 @@
 let kafka = require('kafka-node'),
     ConsumerOffsetOutOfSyncChecker = require('../healthCheckers/consumerOffsetOutOfSyncChecker'),
+    EventEmitter = require('events').EventEmitter,
     _ = require('lodash');
 
-module.exports = class KafkaConsumer {
+module.exports = class KafkaConsumer extends EventEmitter {
     init(config, logger) {
         let {FetchMaxBytes, Topics, MessageFunction, KafkaConnectionTimeout = 10000, KafkaUrl, GroupId} = config;
         return new Promise((resolve, reject) => {
@@ -36,6 +37,7 @@ module.exports = class KafkaConsumer {
 
             this.consumer.on('error', function (err) {
                 this.logger.error(err, 'Kafka Error');
+                this.emit('error', err);
                 return reject(err);
             }.bind(this));
 

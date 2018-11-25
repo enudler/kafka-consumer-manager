@@ -4,8 +4,7 @@ let kafka = require('kafka-node'),
     sinon = require('sinon'),
     _ = require('lodash'),
     should = require('should'),
-    KafkaConsumer = require('../src/consumers/kafkaConsumer'),
-    assert = require('assert');
+    KafkaConsumer = require('../src/consumers/kafkaConsumer');
 
 let sandbox, consumer,
     consumerGroupStub,
@@ -21,10 +20,10 @@ describe('Testing kafka consumer component', function () {
         logErrorStub = sandbox.stub();
         logInfoStub = sandbox.stub();
         logger = {error: logErrorStub, trace: sandbox.stub(), info: logInfoStub};
-
         closeStub = sandbox.stub();
         pauseStub = sandbox.stub();
         resumeStub = sandbox.stub();
+
         consumerEventHandlers = {};
 
         consumerStub = {
@@ -72,7 +71,7 @@ describe('Testing kafka consumer component', function () {
         };
 
         consumer = new KafkaConsumer();
-
+        consumer.emit = sandbox.stub();
         setTimeout(() => {
             consumerEventHandlers.connect();
         }, 100);
@@ -128,8 +127,11 @@ describe('Testing kafka consumer component', function () {
         });
 
         it('Testing consumer error event', function (done) {
-            consumerEventHandlers.error(new Error('error test'));
+            let err = new Error('error test');
+            consumerEventHandlers.error(err);
             setTimeout(function () {
+                should(consumer.emit.calledOnce).eql(true);
+                should(consumer.emit.args[0][1]).eql(err);
                 should(logErrorStub.args[0]).eql([new Error('error test'), 'Kafka Error']);
                 done();
             }, 10);
