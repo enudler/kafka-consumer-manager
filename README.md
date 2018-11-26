@@ -5,13 +5,13 @@
 [![NPM](https://nodei.co/npm/kafka-consumer-manager.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/kafka-consumer-manager/)
 [![NPM](https://nodei.co/npm-dl/kafka-consumer-manager.png?months=1)](https://nodei.co/npm/kafka-consumer-manager/)
 
-This package is used to to simplify the common use of kafka consumer by:
-* Support multiple kafka-consumer-manager by instance creation
+This package is used to simplify the common use of kafka consumer:
+* Supports multiple kafka-consumer-manager by instance creation
 * Provides support for autoCommit: false and throttling by saving messages to queues and working messages by message per partition, (concurrency level equals to the partitions number)
-* Provides api for kafka consumer offset out of sync check by checking that the offset of the partition is synced to zookeeper
+* Provides an api for kafka consumer offset out of sync check by checking that the offset of the partition is synced to zookeeper
 * Accepts a promise with the business logic each consumed message should go through
 * Accepts a promise function with the business logic of when to pause and when to resume the consuming
-* Provides api for sending message back to the topic (usually for retries)
+* Provides an api for sending message back to the topic (usually for retries)
 
 
 ## Install
@@ -118,6 +118,10 @@ Only relevant for autoCommit: true
 ### kafka-consumer-manager.getLastMessage()
 
 Get the last message that the consumer received. Don't change the original message, it may cause unstable behaviour in MessageFunction function.
+
+### kafka-consumer-manager.on(eventName, eventHandler)
+
+Listens on the chose consumer events
 
 ## Running Tests
 Using mocha and istanbul 
