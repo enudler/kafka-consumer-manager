@@ -1,10 +1,9 @@
 let kafka = require('kafka-node'),
     ConsumerOffsetOutOfSyncChecker = require('../healthCheckers/consumerOffsetOutOfSyncChecker'),
     KafkaThrottlingManager = require('../throttling/kafkaThrottlingManager'),
-    EventEmitter = require('events').EventEmitter,
     _ = require('lodash');
 
-module.exports = class KafkaStreamConsumer extends EventEmitter {
+module.exports = class KafkaStreamConsumer {
     init(config, logger){
         let {KafkaUrl, GroupId, Topics, MessageFunction, FetchMaxBytes,
             AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000} = config;
@@ -40,7 +39,6 @@ module.exports = class KafkaStreamConsumer extends EventEmitter {
 
             this.consumer.on('error', function(err) {
                 this.logger.error(err, 'Kafka Error');
-                this.emit('error', err);
                 return reject(err);
             }.bind(this));
 
@@ -135,5 +133,9 @@ module.exports = class KafkaStreamConsumer extends EventEmitter {
 
     commit(message) {
         this.consumer.commit(message, this.commitEachMessage);
+    }
+
+    on(eventName, eventHandler) {
+        return this.consumer.on(eventName, eventHandler);
     }
 };

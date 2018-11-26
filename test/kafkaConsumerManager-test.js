@@ -84,7 +84,6 @@ describe('Verify mandatory params', () => {
         should(dependencyInitStub.calledOnce).eql(true);
         should(loggerChildStub.calledOnce).eql(true);
         should(loggerChildStub.args[0][0]).eql({ consumer_name: fullConfigurationCommitTrue.LoggerName });
-        should(kafkaConsumerManager).have.property('emit');
     });
 
     it('All params exists - kafkaStreamConsumer', async () => {
@@ -95,7 +94,6 @@ describe('Verify mandatory params', () => {
         should(dependencyInitStub.calledOnce).eql(true);
         should(loggerChildStub.calledOnce).eql(true);
         should(loggerChildStub.args[0][0]).eql({ consumer_name: fullConfigurationCommitTrue.LoggerName });
-        should(kafkaConsumerManager).have.property('emit');
     });
 
     it('All params are missing', async () => {
@@ -220,18 +218,23 @@ describe('Verify export functions', () => {
 });
 
 describe('Verify emitter', () => {
+    let EventEmitter = require('events').EventEmitter;
+    let emitter = new EventEmitter();
     let sandbox;
     let kafkaConsumerManager = new KafkaConsumerManager();
     let producerInitStub,
-        emitKafkaManagerStub,
+        onStub,
         consumerInitStub, dependencyInitStub,
         throttlingInitStub,
+        consumerOnStub,
+        consumerStreamOnStub,
         loggerChildStub,
         consumerStreamInitStub;
 
     beforeEach(() => {
         producerInitStub.resolves();
         consumerInitStub.resolves();
+        consumerStreamInitStub.resolves({});
         dependencyInitStub.returns({});
         throttlingInitStub.returns({});
     });
@@ -240,11 +243,17 @@ describe('Verify emitter', () => {
         sandbox = sinon.sandbox.create();
         producerInitStub = sandbox.stub(KafkaProducer.prototype, 'init');
         consumerInitStub = sandbox.stub(KafkaConsumer.prototype, 'init');
+        consumerOnStub = sandbox.stub(KafkaConsumer.prototype, 'on').callsFake((name, handler) => {
+            emitter.on(name, handler);
+        });
+        consumerStreamOnStub = sandbox.stub(KafkaStreamConsumer.prototype, 'on').callsFake((name, handler) => {
+            emitter.on(name, handler);
+        });
         consumerStreamInitStub = sandbox.stub(KafkaStreamConsumer.prototype, 'init');
         dependencyInitStub = sandbox.stub(DependencyChecker.prototype, 'init');
         throttlingInitStub = sandbox.stub(KafkaThrottlingManager.prototype, 'init');
         loggerChildStub = sandbox.stub(bunyan.prototype, 'child');
-        emitKafkaManagerStub = sandbox.stub(KafkaConsumerManager.prototype, 'emit');
+        onStub = sandbox.stub();
     });
 
     afterEach(() => {
@@ -257,17 +266,23 @@ describe('Verify emitter', () => {
 
     it('verify kafkaConsumer emitter', async () => {
         await kafkaConsumerManager.init(fullConfigurationCommitTrue);
-        let err = new Error('test');
-        kafkaConsumerManager._chosenConsumer.emit('error', err);
-        should(emitKafkaManagerStub.calledOnce).equal(true);
-        should(emitKafkaManagerStub.args[0][1]).eql(err);
+        kafkaConsumerManager.on('error', onStub);
+        let err = new Error('testError');
+        emitter.emit('error', err);
+        should(consumerOnStub.calledOnce).equal(true);
+        should(consumerOnStub.args[0]).eql(['error', onStub]);
+        should(onStub.calledOnce).equal(true);
+        should(onStub.args[0][0]).eql(err);
     });
 
     it('verify kafkaStreamConsumer emitter', async () => {
         await kafkaConsumerManager.init(fullConfigurationCommitFalse);
+        kafkaConsumerManager.on('error', onStub);
         let err = new Error('test');
-        kafkaConsumerManager._chosenConsumer.emit('error', err);
-        should(emitKafkaManagerStub.calledOnce).equal(true);
-        should(emitKafkaManagerStub.args[0][1]).eql(err);
+        emitter.emit('error', err);
+        should(consumerStreamOnStub.calledOnce).equal(true);
+        should(consumerStreamOnStub.args[0]).eql(['error', onStub]);
+        should(onStub.calledOnce).equal(true);
+        should(onStub.args[0][0]).eql(err);
     });
 });

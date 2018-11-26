@@ -40,7 +40,6 @@ describe('Testing events method', function () {
         consumerGroupStreamStub.returns(consumerStreamStub);
 
         consumer = new KafkaStreamConsumer();
-        consumer.emit = sandbox.stub();
         promiseActionSpy = sinon.spy();
 
         baseConfiguration = {
@@ -86,8 +85,6 @@ describe('Testing events method', function () {
                 should(kafkaThrottlingManagerStub.callCount).eql(0);
                 should(offsetOutOfSyncCheckerStub.callCount).eql(0);
                 should(logErrorStub.args[0]).eql([err, 'Kafka Error']);
-                should(consumer.emit.calledOnce).eql(true);
-                should(consumer.emit.args[0][1]).eql(err);
             });
         });
 
@@ -212,8 +209,6 @@ describe('Testing events method', function () {
                 stack: 'some_error_stack'
             };
             consumerEventHandlers.error(err);
-            should(consumer.emit.calledOnce).eql(true);
-            should(consumer.emit.args[0][1]).eql(err);
             sinon.assert.calledOnce(logErrorStub);
             sinon.assert.calledWithExactly(logErrorStub, err, 'Kafka Error');
         });
