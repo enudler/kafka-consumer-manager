@@ -121,7 +121,7 @@ Get the last message that the consumer received. Don't change the original messa
 
 ### kafka-consumer-manager.on(eventName, eventHandler)
 
-Listens on the chose consumer events
+Listens on the chosen consumer events
 
 ## Running Tests
 Using mocha and istanbul 
