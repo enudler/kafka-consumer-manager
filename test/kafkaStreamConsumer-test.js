@@ -40,7 +40,6 @@ describe('Testing events method', function () {
         consumerGroupStreamStub.returns(consumerStreamStub);
 
         consumer = new KafkaStreamConsumer();
-
         promiseActionSpy = sinon.spy();
 
         baseConfiguration = {
@@ -77,14 +76,15 @@ describe('Testing events method', function () {
         });
 
         it('fail to connect - error event', function () {
+            let err = new Error('fail to connect');
             setTimeout(() => {
-                consumerEventHandlers.error(new Error('fail to connect'));
+                consumerEventHandlers.error(err);
             }, 100);
 
             return consumer.init(baseConfiguration, logger).should.be.rejectedWith(new Error('fail to connect')).then(() => {
                 should(kafkaThrottlingManagerStub.callCount).eql(0);
                 should(offsetOutOfSyncCheckerStub.callCount).eql(0);
-                should(logErrorStub.args[0]).eql([new Error('fail to connect'), 'Kafka Error']);
+                should(logErrorStub.args[0]).eql([err, 'Kafka Error']);
             });
         });
 

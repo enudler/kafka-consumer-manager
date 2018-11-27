@@ -53,6 +53,14 @@ module.exports = class KafkaConsumerManager {
         await this._dependencyChecker.init(chosenConsumer, configuration, logger);
     }
 
+    /**
+     * The chosen consumer `on` EventEmitter function.
+     * @param eventName - In order to listen to error events, use 'error' event.
+     */
+    on(eventName, eventHandler) {
+        return this._chosenConsumer.on(eventName, eventHandler);
+    }
+
     validateOffsetsAreSynced() {
         return this._chosenConsumer.validateOffsetsAreSynced();
     }

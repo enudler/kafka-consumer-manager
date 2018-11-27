@@ -149,4 +149,8 @@ module.exports = class KafkaConsumer {
     getLastMessage(){
         return this.lastMessage;
     }
+
+    on(eventName, eventHandler) {
+        return this.consumer.on(eventName, eventHandler);
+    }
 };

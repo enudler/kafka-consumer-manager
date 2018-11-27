@@ -134,4 +134,8 @@ module.exports = class KafkaStreamConsumer {
     commit(message) {
         this.consumer.commit(message, this.commitEachMessage);
     }
+
+    on(eventName, eventHandler) {
+        return this.consumer.on(eventName, eventHandler);
+    }
 };
