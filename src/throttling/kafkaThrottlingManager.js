@@ -20,7 +20,8 @@ module.exports = class KafkaThrottlingManager {
         }.bind(this), interval);
     }
 
-    handleIncomingMessage(message){
+    handleIncomingMessage(message, histogramMetric){
+        message.histogramMetic = histogramMetric;
         let partition = message.partition;
         let topic = message.topic;
         if (!this.innerQueues[topic][partition]) {
@@ -38,10 +39,13 @@ module.exports = class KafkaThrottlingManager {
 
 function generateThrottlingQueueInstance(callbackPromise, logger) {
     let queue = async.queue(function (message, commitOffsetCallback) {
+        message.end = message.histogramMetic.startTimer({topic: 'TOPIC'});
         return callbackPromise(message).then(() => {
+            message.end({status: 'success'})
             this.logger.trace(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
             commitOffsetCallback(message);
         }).catch((err) => {
+            message.end({status: 'failed'})
             this.logger.error(err, 'MessageFunction was rejected');
         });
     }.bind({logger}), 1);

@@ -30,6 +30,7 @@
     "istanbul": "1.0.0-alpha.2",
     "kafka-node": "3.0.1",
     "lodash": "^4.17.10",
+    "prom-client": "^11.2.1",
     "request": "^2.88.0",
     "request-promise": "^4.2.2"
   },

@@ -1,9 +1,21 @@
 let kafka = require('kafka-node'),
     ConsumerOffsetOutOfSyncChecker = require('../healthCheckers/consumerOffsetOutOfSyncChecker'),
     KafkaThrottlingManager = require('../throttling/kafkaThrottlingManager'),
-    _ = require('lodash');
+    _ = require('lodash'),
+    prometheusConfig = require('../prometheus/prometheus-config'),
+    prometheus = require('prom-client');
 
 module.exports = class KafkaStreamConsumer {
+    constructor(){
+        // is the check before creating necassary?? should move to the the init func?
+        this.kafkaQueryHistogram = new prometheus.Histogram({
+            name: prometheusConfig.METRIC_NAMES.KAFKA_REQUEST_DURATION,
+            help: 'The duration time of processing kafka specific message',
+            labelNames: ['status', 'topic'],
+            buckets: prometheusConfig.BUCKETS.PROMETHEUS_KAFKA_DURATION_SIZES_BUCKETS
+        });
+    }
+
     init(config, logger){
         let {KafkaUrl, GroupId, Topics, MessageFunction, FetchMaxBytes,
             AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000} = config;
@@ -20,6 +32,8 @@ module.exports = class KafkaStreamConsumer {
                 autoCommitIntervalMs: AutoCommitIntervalMs || 5000
             };
 
+
+
             let consumer = new kafka.ConsumerGroupStream(options, Topics);
             Object.assign(this, {
                 logger: logger,
@@ -34,7 +48,7 @@ module.exports = class KafkaStreamConsumer {
             this.consumer.on('data', function(message){
                 this.lastMessage = message;
                 this.logger.trace(`consumerGroupStream got message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
-                this.kafkaThrottlingManager.handleIncomingMessage(message);
+                this.kafkaThrottlingManager.handleIncomingMessage(message, this.getQueryHistogram());
             }.bind(this));
 
             this.consumer.on('error', function(err) {
@@ -109,7 +123,7 @@ module.exports = class KafkaStreamConsumer {
 
     validateOffsetsAreSynced() {
         if (!this.consumerEnabled) {
-            this.logger.info('Monitor Offset: Skipping check as the consumer is paused');
+            // this.logger.info('Monitor Offset: Skipping check as the consumer is paused');
             return Promise.resolve();
         }
         return this.consumerOffsetOutOfSyncChecker.validateOffsetsAreSynced();
@@ -130,7 +144,12 @@ module.exports = class KafkaStreamConsumer {
     getLastMessage(){
         return this.lastMessage;
     }
-
+    getQueryHistogram(){
+        return this.kafkaQueryHistogram;
+    }
+    getConsumerGroupDiff(){
+        return this.kafkaConsumerGroupDiff;
+    }
     commit(message) {
         this.consumer.commit(message, this.commitEachMessage);
     }
