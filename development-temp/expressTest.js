@@ -1,6 +1,6 @@
 const express = require('express');
 let bodyParser = require('body-parser');
-// let prometheus = require('prom-client');
+let prometheus = require('prom-client');
 let KafkaManager = require('../src/kafkaConsumerManager');
 let kafkaManager = new KafkaManager();
 

@@ -56,6 +56,26 @@ module.exports = class ConsumerOffsetOutOfSyncChecker {
             }
         });
     }
+
+    async registerOffsetGauge(kafkaConsumerGroupOffset) {
+        console.log('#### registerOffsetGauge');
+        let offsetUpdate = async () => {
+            console.log('#### offsetUpdate');
+            let currentOffsetArr = await getOffset(this.consumer, this.offset, this.logger);
+            console.log('currentOffsetArr is:');
+            console.log(currentOffsetArr);
+            if (currentOffsetArr) {
+                currentOffsetArr.forEach((offsetObj) => {
+                    console.log(`setting: `);
+                    kafkaConsumerGroupOffset.set({
+                        topic: offsetObj.topic,
+                        partition: offsetObj.partition
+                    }, offsetObj.offset);
+                });
+            }
+        };
+        setInterval(offsetUpdate, 5000).unref();
+    }
 };
 
 function buildOffsetRequestPayloads(topicPayloads) {
@@ -114,20 +134,32 @@ function isOffsetsInSync(notIncrementedTopicPayloads, zookeeperOffsets, kafkaOff
     return lastErrorToHealthCheck;
 }
 
-function getOffset() {
-    if (this.consumer.topicPayloads.length > 0) {
-        let offsetsPayloads = buildOffsetRequestPayloads(this.consumer.topicPayloads);
-        this.offset.fetch(offsetsPayloads, function (err, zookeeperOffsets) {
+async function getOffset(consumer, offset, logger) {
+    let offsetsArr = new Array(consumer.topicPayloads.length);
+    console.log(`checking offset! length is: ${consumer.topicPayloads.length}`);
+    if (consumer.topicPayloads.length > 0) {
+        let offsetsPayloads = buildOffsetRequestPayloads(consumer.topicPayloads);
+        await offset.fetch(offsetsPayloads, function (err, zookeeperOffsets) {
             if (err) {
-                this.logger.error(err, 'Monitor Offset: Failed to fetch offsets');
+                logger.error(err, 'Monitor Offset: Failed to fetch offsets');
             }
-            this.consumer.topicPayloads.forEach((topicPayload) => {
+            consumer.topicPayloads.forEach((topicPayload, i) => {
                 let {topic, partition, offset} = topicPayload;
+                console.log(`topic is ${topic} and offset is: ${offset}`);
                 if (zookeeperOffsets && zookeeperOffsets[topic] && zookeeperOffsets[topic][partition]) {
                     let zkLatestOffset = zookeeperOffsets[topic][partition][0];
-                    return zkLatestOffset - offset;
+                    console.log(`zkLatestOffset is ${zkLatestOffset}`);
+                    offsetsArr[i] = {
+                        topic: topic,
+                        offset: zkLatestOffset - offset,
+                        partition: partition
+                    };
                 }
             });
+
         });
+        console.log('offsetsArr is:');
+        console.log(offsetsArr);
+        return offsetsArr;
     }
 }

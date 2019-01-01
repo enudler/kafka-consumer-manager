@@ -17,8 +17,7 @@ module.exports = class KafkaStreamConsumer {
         this.kafkaConsumerGroupOffset = new prometheus.Gauge({
             name: prometheusConfig.METRIC_NAMES.CONSUMER_GROUP_OFFSET,
             help: 'The service\'s consumer groups offset',
-            labelNames: ['topic', 'consumer_group'],
-            buckets: prometheusConfig.BUCKETS.PROMETHEUS_KAFKA_DURATION_SIZES_BUCKETS
+            labelNames: ['topic', 'consumer_group', 'partition']
         });
     }
 
@@ -88,6 +87,7 @@ module.exports = class KafkaStreamConsumer {
             this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker();
             this.consumerOffsetOutOfSyncChecker.init(this.consumer.consumerGroup,
                 config.KafkaOffsetDiffThreshold, this.logger);
+            this.consumerOffsetOutOfSyncChecker.registerOffsetGauge(this.getConsumerGroupDiff());
         });
     }
 
