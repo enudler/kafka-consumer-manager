@@ -62,6 +62,7 @@ module.exports = class ConsumerOffsetOutOfSyncChecker {
         let offsetUpdate = async () => {
             console.log('#### offsetUpdate');
             let currentOffsetArr = await getOffset(this.consumer, this.offset, this.logger);
+            console.log('#### AFTER offsetUpdate');
             console.log('currentOffsetArr is:');
             console.log(currentOffsetArr);
             if (currentOffsetArr) {
@@ -74,7 +75,7 @@ module.exports = class ConsumerOffsetOutOfSyncChecker {
                 });
             }
         };
-        setInterval(offsetUpdate, 5000).unref();
+        setInterval(offsetUpdate, 10000).unref();
     }
 };
 
@@ -136,30 +137,27 @@ function isOffsetsInSync(notIncrementedTopicPayloads, zookeeperOffsets, kafkaOff
 
 async function getOffset(consumer, offset, logger) {
     let offsetsArr = new Array(consumer.topicPayloads.length);
-    console.log(`checking offset! length is: ${consumer.topicPayloads.length}`);
     if (consumer.topicPayloads.length > 0) {
         let offsetsPayloads = buildOffsetRequestPayloads(consumer.topicPayloads);
-        await offset.fetch(offsetsPayloads, function (err, zookeeperOffsets) {
-            if (err) {
-                logger.error(err, 'Monitor Offset: Failed to fetch offsets');
-            }
-            consumer.topicPayloads.forEach((topicPayload, i) => {
-                let {topic, partition, offset} = topicPayload;
-                console.log(`topic is ${topic} and offset is: ${offset}`);
-                if (zookeeperOffsets && zookeeperOffsets[topic] && zookeeperOffsets[topic][partition]) {
-                    let zkLatestOffset = zookeeperOffsets[topic][partition][0];
-                    console.log(`zkLatestOffset is ${zkLatestOffset}`);
-                    offsetsArr[i] = {
-                        topic: topic,
-                        offset: zkLatestOffset - offset,
-                        partition: partition
-                    };
+        return new Promise(function (resolve, reject) {
+            offset.fetch(offsetsPayloads, function (err, zookeeperOffsets) {
+                if (err) {
+                    logger.error(err, 'Monitor Offset: Failed to fetch offsets');
+                    return reject(err);
                 }
+                consumer.topicPayloads.forEach((topicPayload, i) => {
+                    let {topic, partition, offset} = topicPayload;
+                    if (zookeeperOffsets && zookeeperOffsets[topic] && zookeeperOffsets[topic][partition]) {
+                        let zkLatestOffset = zookeeperOffsets[topic][partition][0];
+                        offsetsArr[i] = {
+                            topic: topic,
+                            offset: zkLatestOffset - offset,
+                            partition: partition
+                        };
+                    }
+                });
+                return resolve(offsetsArr);
             });
-
         });
-        console.log('offsetsArr is:');
-        console.log(offsetsArr);
-        return offsetsArr;
     }
 }

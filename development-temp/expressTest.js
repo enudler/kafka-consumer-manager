@@ -50,7 +50,7 @@ app.post('/failure', (req, res) => {
     res.status(200);
     res.json(req.body);
 });
-setInterval(() => kafkaManager.validateOffsetsAreSynced(), 10000);
+setInterval(() => kafkaManager.validateOffsetsAreSynced(), 5000);
 app.get('/metrics', (req, res) => {
     res.set('Content-Type', prometheus.register.contentType);
     setTimeout(() => {
