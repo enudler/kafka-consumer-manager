@@ -14,6 +14,12 @@ module.exports = class KafkaStreamConsumer {
             labelNames: ['status', 'topic'],
             buckets: prometheusConfig.BUCKETS.PROMETHEUS_KAFKA_DURATION_SIZES_BUCKETS
         });
+        this.kafkaConsumerGroupOffset = new prometheus.Gauge({
+            name: prometheusConfig.METRIC_NAMES.CONSUMER_GROUP_OFFSET,
+            help: 'The service\'s consumer groups offset',
+            labelNames: ['topic', 'consumer_group'],
+            buckets: prometheusConfig.BUCKETS.PROMETHEUS_KAFKA_DURATION_SIZES_BUCKETS
+        });
     }
 
     init(config, logger){
@@ -148,7 +154,7 @@ module.exports = class KafkaStreamConsumer {
         return this.kafkaQueryHistogram;
     }
     getConsumerGroupDiff(){
-        return this.kafkaConsumerGroupDiff;
+        return this.kafkaConsumerGroupOffset;
     }
     commit(message) {
         this.consumer.commit(message, this.commitEachMessage);

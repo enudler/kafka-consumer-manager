@@ -1,7 +1,9 @@
 const express = require('express');
 let bodyParser = require('body-parser');
+// let prometheus = require('prom-client');
 let KafkaManager = require('../src/kafkaConsumerManager');
 let kafkaManager = new KafkaManager();
+
 let configuration = {
     KafkaUrl: 'localhost:9092',
     GroupId: 'group-id',
@@ -20,6 +22,10 @@ let configuration = {
     MessageFunction: (message) => {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
+                console.log(`handling message ${JSON.stringify(message)}`)
+                if (JSON.parse(message.value).message === 'fail') {
+                    return reject();
+                }
                 return resolve();
             }, 500);
         });
@@ -28,6 +34,7 @@ let configuration = {
 const app = express();
 
 app.use(bodyParser.json());
+
 app.post('/', (req, res) => {
     console.log('body is: ' + JSON.stringify(req.body));
     kafkaManager.send(JSON.stringify({hello: 'keya'}), 'A');
@@ -36,11 +43,18 @@ app.post('/', (req, res) => {
     res.status(200);
     res.json(req.body);
 });
+app.post('/failure', (req, res) => {
+    console.log('body is: ' + JSON.stringify(req.body));
+    kafkaManager.send(JSON.stringify({message: 'fail'}), 'A');
 
+    res.status(200);
+    res.json(req.body);
+});
 setInterval(() => kafkaManager.validateOffsetsAreSynced(), 10000);
 app.get('/metrics', (req, res) => {
+    res.set('Content-Type', prometheus.register.contentType);
     setTimeout(() => {
-        return res.json({});
+        return res.end(prometheus.register.metrics());
     }, 0);
 });
 

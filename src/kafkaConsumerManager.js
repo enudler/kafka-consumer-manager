@@ -80,9 +80,9 @@ module.exports = class KafkaConsumerManager {
     finishedHandlingMessage() {
         return this._chosenConsumer.decreaseMessageInMemory();
     }
-    send() {
+    send(msg, topic) {
         if (this._createProducer){
-            return this._producer.send();
+            return this._producer.send(msg, topic);
         } else {
             this._logger.warn('Not supported for CreateProducer:false');
         }

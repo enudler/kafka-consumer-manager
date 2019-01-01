@@ -4,7 +4,7 @@ let kafka = require('kafka-node'),
     _ = require('lodash');
 
 module.exports = class ConsumerOffsetOutOfSyncChecker {
-    init(consumerGroup, kafkaOffsetDiffThreshold, logger){
+    init(consumerGroup, kafkaOffsetDiffThreshold, logger) {
         Object.assign(this, {
             logger: logger,
             consumer: consumerGroup,
@@ -13,6 +13,7 @@ module.exports = class ConsumerOffsetOutOfSyncChecker {
             previousConsumerReadOffset: _.cloneDeep(consumerGroup.topicPayloads)
         });
     }
+
     validateOffsetsAreSynced() {
         return new Promise((resolve, reject) => {
             if (!this.previousConsumerReadOffset) {
@@ -111,4 +112,22 @@ function isOffsetsInSync(notIncrementedTopicPayloads, zookeeperOffsets, kafkaOff
     });
 
     return lastErrorToHealthCheck;
+}
+
+function getOffset() {
+    if (this.consumer.topicPayloads.length > 0) {
+        let offsetsPayloads = buildOffsetRequestPayloads(this.consumer.topicPayloads);
+        this.offset.fetch(offsetsPayloads, function (err, zookeeperOffsets) {
+            if (err) {
+                this.logger.error(err, 'Monitor Offset: Failed to fetch offsets');
+            }
+            this.consumer.topicPayloads.forEach((topicPayload) => {
+                let {topic, partition, offset} = topicPayload;
+                if (zookeeperOffsets && zookeeperOffsets[topic] && zookeeperOffsets[topic][partition]) {
+                    let zkLatestOffset = zookeeperOffsets[topic][partition][0];
+                    return zkLatestOffset - offset;
+                }
+            });
+        });
+    }
 }

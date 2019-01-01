@@ -39,7 +39,7 @@ module.exports = class KafkaThrottlingManager {
 
 function generateThrottlingQueueInstance(callbackPromise, logger) {
     let queue = async.queue(function (message, commitOffsetCallback) {
-        message.end = message.histogramMetic.startTimer({topic: 'TOPIC'});
+        message.end = message.histogramMetic.startTimer({topic: message.topic});
         return callbackPromise(message).then(() => {
             message.end({status: 'success'})
             this.logger.trace(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
