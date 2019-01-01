@@ -58,16 +58,11 @@ module.exports = class ConsumerOffsetOutOfSyncChecker {
     }
 
     async registerOffsetGauge(kafkaConsumerGroupOffset) {
-        console.log('#### registerOffsetGauge');
         let offsetUpdate = async () => {
-            console.log('#### offsetUpdate');
             let currentOffsetArr = await getOffset(this.consumer, this.offset, this.logger);
-            console.log('#### AFTER offsetUpdate');
-            console.log('currentOffsetArr is:');
             console.log(currentOffsetArr);
             if (currentOffsetArr) {
                 currentOffsetArr.forEach((offsetObj) => {
-                    console.log(`setting: `);
                     kafkaConsumerGroupOffset.set({
                         topic: offsetObj.topic,
                         partition: offsetObj.partition

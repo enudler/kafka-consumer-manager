@@ -15,6 +15,7 @@ let configuration = {
     AutoCommit: false,
     ThrottlingThreshold: 25,
     ThrottlingCheckIntervalMs: 10000,
+    shouldExposeMetrics: true,
 
     ResumePauseCheckFunction: () => {
         return Promise.resolve(true);
