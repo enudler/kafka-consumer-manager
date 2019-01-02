@@ -68,6 +68,10 @@ await kafkaConsumerManager.init(configuration)
 * `AutoCommit` &ndash; Boolean, If AutoCommit is false, the consumer will queue messages from each partition to a specific queue and will handle messages by the order and commit the offset when it's done.
 * `LoggerName` &ndash; String, the value of consumer_name field of the internal logger, if empty this field will not exist.
 * `CreateProducer` &ndash; Boolean, If CreateProducer is true it will create Producer instance.(Default true)
+* `shouldExposeMetrics` &ndash; Boolean, If true prometheus metrics will be collected and registered in the prom-client
+    *please note that prom-client is a peer-dependency meaning it have to exist in your application.
+* `durationBuckets` &ndash; optional, array of doubles defining bucket sizef for kafka_request_duration_seconds_bucket.
+default values are: [0.001, 0.003, 0.005, 0.015, 0.03, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5] 
 
 
 ##### AutoCommit: true settings

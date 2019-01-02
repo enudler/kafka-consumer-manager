@@ -10,7 +10,7 @@ module.exports = class KafkaStreamConsumer {
     init(config, logger) {
         let {
             KafkaUrl, GroupId, Topics, MessageFunction, FetchMaxBytes,
-            AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000, shouldExposeMetrics
+            AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000, shouldExposeMetrics, durationBuckets
         } = config;
 
         return new Promise((resolve, reject) => {
@@ -29,7 +29,7 @@ module.exports = class KafkaStreamConsumer {
                     name: prometheusConfig.METRIC_NAMES.KAFKA_REQUEST_DURATION,
                     help: 'The duration time of processing kafka specific message',
                     labelNames: ['status', 'topic'],
-                    buckets: prometheusConfig.BUCKETS.PROMETHEUS_KAFKA_DURATION_SIZES_BUCKETS
+                    buckets: durationBuckets || prometheusConfig.BUCKETS.PROMETHEUS_KAFKA_DURATION_SIZES_BUCKETS
                 });
                 this.kafkaConsumerGroupOffset = new prometheus.Gauge({
                     name: prometheusConfig.METRIC_NAMES.CONSUMER_GROUP_OFFSET,
