@@ -48,6 +48,6 @@
     "prom-client": "^11.2.1"
   },
   "peerDependencies": {
-    "prom-client": "^11.2.1"
+    "prom-client": "11.x"
   }
 }
