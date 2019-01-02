@@ -129,7 +129,7 @@ module.exports = class KafkaStreamConsumer {
 
     validateOffsetsAreSynced() {
         if (!this.consumerEnabled) {
-            // this.logger.info('Monitor Offset: Skipping check as the consumer is paused');
+            this.logger.info('Monitor Offset: Skipping check as the consumer is paused');
             return Promise.resolve();
         }
         return this.consumerOffsetOutOfSyncChecker.validateOffsetsAreSynced();

@@ -119,6 +119,7 @@ describe('Testing kafkaThrottlingManager component', () => {
             should(commitFunctionStub.calledOnce).eql(true);
             should(logTraceStub.args[0][0]).equal(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
         });
+
         it('Second call to handleIncomingMessage should write to inner queue ', async () => {
             sandbox.resetHistory();
 
@@ -132,6 +133,30 @@ describe('Testing kafkaThrottlingManager component', () => {
             await sleep(100);
             should(commitFunctionStub.calledOnce).eql(true);
             should(logTraceStub.args[0][0]).equal(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
+        });
+        it('Third call to handleIncomingMessage with histogramMetric should write to inner queue ', async () => {
+            sandbox.resetHistory();
+
+            let message = {
+                topic: 'TopicA',
+                partition: 4,
+                msg: 'some-message',
+                offset: 1007
+            };
+            let endStub = sandbox.stub();
+            let histogram = {
+                startTimer: sandbox.stub()
+            };
+            histogram.startTimer.returns(endStub);
+            kafkaThrottlingManager.handleIncomingMessage(message, histogram);
+            await sleep(100);
+            should(commitFunctionStub.calledOnce).eql(true);
+            should(logTraceStub.args[0][0]).equal(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
+            await sleep(200);
+            should(histogram.startTimer.calledOnce).eql(true);
+            should(histogram.startTimer.args[0][0]).deepEqual({topic: 'TopicA'});
+            should(endStub.calledOnce).eql(true);
+            should(endStub.args[0][0]).deepEqual({status: 'success'});
         });
     });
 
@@ -164,10 +189,20 @@ describe('Testing kafkaThrottlingManager component', () => {
                 msg: 'some-message',
                 offset: 1005
             };
-            kafkaThrottlingManager.handleIncomingMessage(message);
+            let endStub = sandbox.stub();
+            let histogram = {
+                startTimer: sandbox.stub()
+            };
+            histogram.startTimer.returns(endStub);
+
+            kafkaThrottlingManager.handleIncomingMessage(message, histogram);
             await sleep(100);
             should(commitFunctionStub.calledOnce).eql(false);
             should(logErrorStub.args[0]).eql([new Error('some message'), 'MessageFunction was rejected']);
+            should(histogram.startTimer.calledOnce).eql(true);
+            should(histogram.startTimer.args[0][0]).deepEqual({topic: 'TopicA'});
+            should(endStub.calledOnce).eql(true);
+            should(endStub.args[0][0]).deepEqual({status: 'failed'});
         });
     });
 });
