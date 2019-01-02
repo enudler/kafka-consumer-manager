@@ -59,8 +59,7 @@ module.exports = class ConsumerOffsetOutOfSyncChecker {
 
     async registerOffsetGauge(kafkaConsumerGroupOffset) {
         let offsetUpdate = async () => {
-            let currentOffsetArr = await getOffset(this.consumer, this.offset, this.logger);
-            console.log(currentOffsetArr);
+            let currentOffsetArr = await getOffsetsArray(this.consumer, this.offset, this.logger);
             if (currentOffsetArr) {
                 currentOffsetArr.forEach((offsetObj) => {
                     kafkaConsumerGroupOffset.set({
@@ -70,7 +69,7 @@ module.exports = class ConsumerOffsetOutOfSyncChecker {
                 });
             }
         };
-        setInterval(offsetUpdate, 10000).unref();
+        setInterval(offsetUpdate, 5000).unref();
     }
 };
 
@@ -130,7 +129,7 @@ function isOffsetsInSync(notIncrementedTopicPayloads, zookeeperOffsets, kafkaOff
     return lastErrorToHealthCheck;
 }
 
-async function getOffset(consumer, offset, logger) {
+async function getOffsetsArray(consumer, offset, logger) {
     let offsetsArr = new Array(consumer.topicPayloads.length);
     if (consumer.topicPayloads.length > 0) {
         let offsetsPayloads = buildOffsetRequestPayloads(consumer.topicPayloads);

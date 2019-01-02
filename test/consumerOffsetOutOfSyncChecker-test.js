@@ -5,6 +5,7 @@ let kafka = require('kafka-node'),
     _ = require('lodash'),
     should = require('should'),
     ConsumerOffsetOutOfSyncChecker = require('../src/healthCheckers/consumerOffsetOutOfSyncChecker');
+const sleep = require('util').promisify(setTimeout);
 
 let sandbox, offsetChecker,
     expectedError,
@@ -13,7 +14,7 @@ let sandbox, offsetChecker,
     offsetStub,
     closeStub, pauseStub, resumeStub, logger;
 
-describe('Testing consumer offset out of sync checker', function () {
+describe('Testing consumer offset out of sync checker', async function () {
     before(function () {
         sandbox = sinon.sandbox.create();
         logErrorStub = sandbox.stub();
@@ -135,7 +136,8 @@ describe('Testing consumer offset out of sync checker', function () {
             });
 
             offsetChecker.previousConsumerReadOffset =
-                [{ topic: 'topicA',
+                [{
+                    topic: 'topicA',
                     partition: 'partitionA',
                     offset: 50
                 }, {topic: 'topicB', partition: 'partitionB', offset: 100}];
@@ -263,216 +265,82 @@ describe('Testing consumer offset out of sync checker', function () {
         });
     });
 
-    describe('Testing registerOffsetGauge method', function () {
+    describe('Testing registerOffsetGauge', async function () {
         beforeEach(function () {
             sandbox.reset();
         });
 
-        it('Should resolve when no partitions data', function () {
-            offsetChecker.previousConsumerReadOffset = [];
+        it('Check offset diff gauge, 1 partition', async function () {
+            this.timeout(7000);
+            let kafkaConsumerGroupOffsetStub = {
+                set: sandbox.stub()
+            };
+
+            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 10}];
+            fetchStub.yields(undefined, {
+                'topicA': {
+                    'partitionA': [60]
+                }
+            });
+            offsetChecker.registerOffsetGauge(kafkaConsumerGroupOffsetStub);
+            await sleep(6000);
+            should(kafkaConsumerGroupOffsetStub.set.calledOnce).eql(true);
+            should(kafkaConsumerGroupOffsetStub.set.args[0][0]).deepEqual({
+                topic: 'topicA',
+                partition: 'partitionA'
+            });
+            should(kafkaConsumerGroupOffsetStub.set.args[0][1]).equal(50);
+            return offsetChecker;
+        });
+
+        it('Check offset diff gauge, 2 partitions', async function () {
+            this.timeout(7000);
+            let kafkaConsumerGroupOffsetStub = {
+                set: sandbox.stub()
+            };
+
+            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 65}, {
+                topic: 'topicA',
+                partition: 'partitionB',
+                offset: 555555
+            }];
+            fetchStub.yields(undefined, {
+                'topicA': {
+                    'partitionA': [70],
+                    'partitionB': [555555]
+                }
+            });
+            offsetChecker.registerOffsetGauge(kafkaConsumerGroupOffsetStub);
+            await sleep(6000);
+            should(kafkaConsumerGroupOffsetStub.set.callCount).eql(2);
+            should(kafkaConsumerGroupOffsetStub.set.args[0][0]).deepEqual({
+                topic: 'topicA',
+                partition: 'partitionA'
+            });
+            should(kafkaConsumerGroupOffsetStub.set.args[0][1]).equal(5);
+
+            should(kafkaConsumerGroupOffsetStub.set.args[1][0]).deepEqual({
+                topic: 'topicA',
+                partition: 'partitionB'
+            });
+            should(kafkaConsumerGroupOffsetStub.set.args[1][1]).equal(0);
+            return offsetChecker;
+        });
+        it('Check offset diff gauge, 2 partitions', async function () {
+            this.timeout(7000);
+            let kafkaConsumerGroupOffsetStub = {
+                set: sandbox.stub()
+            };
 
             consumerStub.topicPayloads = [];
-
-            return offsetChecker.validateOffsetsAreSynced()
-                .then(() => {
-                    fetchStub.called.should.be.eql(false);
-                });
-        });
-
-        it('Should resolve when all the partitions incremented from last check', function () {
-            offsetChecker.previousConsumerReadOffset = [{topic: 'A', partition: 'B', offset: 1}];
-
-            consumerStub.topicPayloads = [{topic: 'A', partition: 'B', offset: 2}];
-
-            return offsetChecker.validateOffsetsAreSynced()
-                .then(() => {
-                    fetchStub.called.should.be.eql(false);
-                });
-        });
-
-        it('Should return normally when offset not incremneted but the consumer is in sync with ZooKeeper', function () {
-            let expectedFetchArgs = [{
-                topic: 'topic',
-                partition: 'partition',
-                time: -1
-            }];
-
-            fetchStub.yields(undefined, {
-                'topic': {
-                    'partition': [1]
-                }
-            });
-
-            offsetChecker.previousConsumerReadOffset = [{topic: 'topic', partition: 'partition', offset: 1}];
-
-            consumerStub.topicPayloads = [{topic: 'topic', partition: 'partition', offset: 1}];
-
-            return offsetChecker.validateOffsetsAreSynced()
-                .then(() => {
-                    fetchStub.called.should.eql(true);
-                    fetchStub.args[0][0].should.eql(expectedFetchArgs);
-                });
-        });
-
-        it('Should return normally when the partition is not available in in previousConsumerReadOffset', function () {
             fetchStub.yields(undefined, {
                 'topicA': {
-                    'partitionA': [1]
+                    'partitionA': [70],
                 }
             });
-
-            offsetChecker.previousConsumerReadOffset = [{topic: 'topicC', partition: 'partitionC', offset: 1}];
-
-            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 1}];
-
-            return offsetChecker.validateOffsetsAreSynced()
-                .then(() => {
-                    fetchStub.called.should.eql(false);
-                });
-        });
-
-        it('Should return normally when one of the offset not incremented but the consumer is in sync with ZooKeeper', function () {
-            let expectedFetchArgs = [{
-                topic: 'topicB',
-                partition: 'partitionB',
-                time: -1
-            }];
-
-            fetchStub.yields(undefined, {
-                'topicA': {
-                    'partitionA': [60]
-                },
-                'topicB': {
-                    'partitionB': [100]
-                }
-            });
-
-            offsetChecker.previousConsumerReadOffset =
-                [{ topic: 'topicA',
-                    partition: 'partitionA',
-                    offset: 50
-                }, {topic: 'topicB', partition: 'partitionB', offset: 100}];
-
-            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 60}, {
-                topic: 'topicB',
-                partition: 'partitionB',
-                offset: 100
-            }];
-
-            return offsetChecker.validateOffsetsAreSynced()
-                .then(() => {
-                    fetchStub.called.should.eql(true);
-                    fetchStub.args[0][0].should.eql(expectedFetchArgs);
-                });
-        });
-
-        it('Should NOT return an error when the consumer is of of sync less than 3 messages', function (done) {
-            let expectedFetchArgs = [{
-                topic: 'topicB',
-                partition: 'partitionB',
-                time: -1
-            }];
-
-            fetchStub.yields(undefined, {
-                'topicA': {
-                    'partitionA': [60]
-                },
-                'topicB': {
-                    'partitionB': [103]
-                }
-            });
-
-            offsetChecker.previousConsumerReadOffset = [{topic: 'topicA', partition: 'partitionA', offset: 60},
-                {topic: 'topicB', partition: 'partitionB', offset: 100}];
-
-            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 61},
-                {topic: 'topicB', partition: 'partitionB', offset: 100}];
-
-            offsetChecker.validateOffsetsAreSynced()
-                .then(() => {
-                    fetchStub.called.should.eql(true);
-                    fetchStub.args[0][0].should.eql(expectedFetchArgs);
-                    done();
-                });
-        });
-
-        it('Should return an error when offset.fetch fails', function (done) {
-            expectedError = new Error('error');
-            fetchStub.yields(expectedError);
-
-            offsetChecker.previousConsumerReadOffset = [{
-                topic: 'topicA',
-                partition: 'partitionA',
-                offset: 60
-            }];
-
-            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 60}];
-
-            expectedError = new Error('error');
-            fetchStub.yields(expectedError);
-            offsetChecker.validateOffsetsAreSynced()
-                .then(function () {
-                    done(new Error('validateOffsetsAreSynced function did not throw an error as expected'));
-                })
-                .catch((error) => {
-                    logErrorStub.args[0].should.eql([expectedError, 'Monitor Offset: Failed to fetch offsets']);
-                    error.should.eql(new Error('Monitor Offset: Failed to fetch offsets:' + expectedError.message));
-                    fetchStub.called.should.eql(true);
-                    done();
-                });
-        });
-
-        it('Should return an error when the consumer is NOT in sync', function (done) {
-            fetchStub.yields(undefined, {
-                'topicA': {
-                    'partitionA': [60]
-                },
-                'topicB': {
-                    'partitionB': [104]
-                }
-            });
-
-            offsetChecker.previousConsumerReadOffset = [{topic: 'topicA', partition: 'partitionA', offset: 60},
-                {topic: 'topicB', partition: 'partitionB', offset: 100}];
-
-            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 61},
-                {topic: 'topicB', partition: 'partitionB', offset: 100}];
-
-            offsetChecker.validateOffsetsAreSynced()
-                .then(() => done(new Error('validateOffsetsAreSynced function did not throw an error as expected')))
-                .catch((error) => {
-                    let state = {
-                        topic: 'topicB',
-                        partition: 'partitionB',
-                        partitionLatestOffset: 104,
-                        partitionReadOffset: 100,
-                        unhandledMessages: 4
-                    };
-
-                    fetchStub.called.should.eql(true);
-                    logErrorStub.args[0].should.eql(['Monitor Offset: Kafka consumer offsets found to be out of sync', state]);
-                    error.should.eql(new Error(('Monitor Offset: Kafka consumer offsets found to be out of sync:' + JSON.stringify(state))));
-                    fetchStub.called.should.eql(true);
-                    done();
-                });
-        });
-
-        it('Should return an error when the consumer topics/partitions is NOT in sync', function () {
-            offsetChecker.previousConsumerReadOffset = [{topic: 'topicA', partition: 'partitionA', offset: 60}];
-
-            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 60}];
-            fetchStub.yields(undefined, {
-                'topicA': {}
-            });
-            return offsetChecker.validateOffsetsAreSynced()
-                .then(() => Promise.reject(new Error('validateOffsetsAreSynced function did not throw an error as expected')))
-                .catch((error) => {
-                    fetchStub.called.should.eql(true);
-                    // logInfoStub.args[0][0].should.eql('Monitor Offset: No progress detected in offsets since the last check. Checking that the consumer is in sync..');
-                    logErrorStub.args[0][0].should.eql('Monitor Offset: Kafka consumer topics/partitions found to be out of sync in topic: topicA and in partition:partitionA');
-                    error.should.eql(new Error('Monitor Offset: Kafka consumer topics/partitions found to be out of sync in topic: topicA and in partition:partitionA'));
-                    fetchStub.called.should.eql(true);
-                });
+            offsetChecker.registerOffsetGauge(kafkaConsumerGroupOffsetStub);
+            await sleep(6000);
+            should(kafkaConsumerGroupOffsetStub.set.callCount).eql(0);
         });
     });
 });
