@@ -588,6 +588,7 @@ describe('Testing metrics feature', function () {
         should(consumer.kafkaConsumerGroupOffset.help).equal('The service\'s consumer groups offset');
         should(consumer.kafkaConsumerGroupOffset.labelNames).deepEqual(['topic', 'consumer_group', 'partition']);
     });
+
     it('Testing prometheus initializiation - shouldExposeMetrics=false (unspecified)', async function () {
         await consumer.init(baseConfiguration, logger);
         consumerGroupStreamStub.returns(consumerStreamStub);

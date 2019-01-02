@@ -16,6 +16,7 @@ let configuration = {
     ThrottlingThreshold: 25,
     ThrottlingCheckIntervalMs: 10000,
     shouldExposeMetrics: true,
+    durationBuckets: [0.1, 0.2],
 
     ResumePauseCheckFunction: () => {
         return Promise.resolve(true);

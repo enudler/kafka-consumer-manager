@@ -130,8 +130,8 @@ function isOffsetsInSync(notIncrementedTopicPayloads, zookeeperOffsets, kafkaOff
 }
 
 async function getOffsetsArray(consumer, offset, logger) {
-    let offsetsArr = new Array(consumer.topicPayloads.length);
-    if (consumer.topicPayloads.length > 0) {
+    if (consumer.topicPayloads && consumer.topicPayloads.length > 0) {
+        let offsetsArr = new Array(consumer.topicPayloads.length);
         let offsetsPayloads = buildOffsetRequestPayloads(consumer.topicPayloads);
         return new Promise(function (resolve, reject) {
             offset.fetch(offsetsPayloads, function (err, zookeeperOffsets) {
