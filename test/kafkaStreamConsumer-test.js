@@ -577,11 +577,11 @@ describe('Testing metrics feature', function () {
         sandbox.reset();
     });
 
-    it('Testing prometheus initializiation - shouldExposeMetrics=true', async function () {
-        baseConfiguration.shouldExposeMetrics = true;
+    it('Testing prometheus initializiation - ExposePrometheusMetrics=true', async function () {
+        baseConfiguration.ExposePrometheusMetrics = true;
         await consumer.init(baseConfiguration, logger);
         consumerGroupStreamStub.returns(consumerStreamStub);
-        should(consumer.kafkaQueryHistogram.name).equal('kafka_request_duration_seconds_bucket');
+        should(consumer.kafkaQueryHistogram.name).equal('kafka_request_duration_seconds');
         should(consumer.kafkaQueryHistogram.help).equal('The duration time of processing kafka specific message');
         should(consumer.kafkaQueryHistogram.upperBounds).deepEqual(prometheusConfig.BUCKETS.PROMETHEUS_KAFKA_DURATION_SIZES_BUCKETS);
         should(consumer.kafkaConsumerGroupOffset.name).equal('kafka_consumer_group_offset_diff');
@@ -589,7 +589,7 @@ describe('Testing metrics feature', function () {
         should(consumer.kafkaConsumerGroupOffset.labelNames).deepEqual(['topic', 'consumer_group', 'partition']);
     });
 
-    it('Testing prometheus initializiation - shouldExposeMetrics=false (unspecified)', async function () {
+    it('Testing prometheus initializiation - ExposePrometheusMetrics=false (unspecified)', async function () {
         await consumer.init(baseConfiguration, logger);
         consumerGroupStreamStub.returns(consumerStreamStub);
         should(consumer.kafkaQueryHistogram).equal(undefined);

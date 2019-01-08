@@ -6,11 +6,10 @@ let kafka = require('kafka-node'),
     prometheus = require('prom-client');
 
 module.exports = class KafkaStreamConsumer {
-
     init(config, logger) {
         let {
-            KafkaUrl, GroupId, Topics, MessageFunction, FetchMaxBytes,
-            AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000, shouldExposeMetrics, durationBuckets
+            KafkaUrl, GroupId, Topics, MessageFunction, ErrorMessageFunction, FetchMaxBytes,
+            AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000, ExposePrometheusMetrics, PrometheusHistogramBuckets, ConsumerGroupOffsetCheckerInterval = 5000
         } = config;
 
         return new Promise((resolve, reject) => {
@@ -24,12 +23,12 @@ module.exports = class KafkaStreamConsumer {
                 fetchMaxBytes: FetchMaxBytes || 1024 * 1024,
                 autoCommitIntervalMs: AutoCommitIntervalMs || 5000
             };
-            if (shouldExposeMetrics) {
+            if (ExposePrometheusMetrics) {
                 this.kafkaQueryHistogram = new prometheus.Histogram({
                     name: prometheusConfig.METRIC_NAMES.KAFKA_REQUEST_DURATION,
                     help: 'The duration time of processing kafka specific message',
                     labelNames: ['status', 'topic'],
-                    buckets: durationBuckets || prometheusConfig.BUCKETS.PROMETHEUS_KAFKA_DURATION_SIZES_BUCKETS
+                    buckets: PrometheusHistogramBuckets || prometheusConfig.BUCKETS.PROMETHEUS_KAFKA_DURATION_SIZES_BUCKETS
                 });
                 this.kafkaConsumerGroupOffset = new prometheus.Gauge({
                     name: prometheusConfig.METRIC_NAMES.CONSUMER_GROUP_OFFSET,
@@ -81,12 +80,12 @@ module.exports = class KafkaStreamConsumer {
             // create members
             this.kafkaThrottlingManager = new KafkaThrottlingManager();
             this.kafkaThrottlingManager.init(ThrottlingThreshold, ThrottlingCheckIntervalMs,
-                Topics, MessageFunction, this, this.logger);
+                Topics, MessageFunction, ErrorMessageFunction, this, this.logger);
             this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker();
             this.consumerOffsetOutOfSyncChecker.init(this.consumer.consumerGroup,
                 config.KafkaOffsetDiffThreshold, this.logger);
-            if (shouldExposeMetrics) {
-                this.consumerOffsetOutOfSyncChecker.registerOffsetGauge(this.getConsumerGroupDiff());
+            if (ExposePrometheusMetrics) {
+                this.consumerOffsetOutOfSyncChecker.registerOffsetGauge(this.getConsumerGroupDiff(), ConsumerGroupOffsetCheckerInterval);
             }
         });
     }

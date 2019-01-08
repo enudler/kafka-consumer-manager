@@ -282,8 +282,8 @@ describe('Testing consumer offset out of sync checker', async function () {
                     'partitionA': [60]
                 }
             });
-            offsetChecker.registerOffsetGauge(kafkaConsumerGroupOffsetStub);
-            await sleep(6000);
+            offsetChecker.registerOffsetGauge(kafkaConsumerGroupOffsetStub, 1000);
+            await sleep(2000);
             should(kafkaConsumerGroupOffsetStub.set.calledOnce).eql(true);
             should(kafkaConsumerGroupOffsetStub.set.args[0][0]).deepEqual({
                 topic: 'topicA',
@@ -310,8 +310,8 @@ describe('Testing consumer offset out of sync checker', async function () {
                     'partitionB': [555555]
                 }
             });
-            offsetChecker.registerOffsetGauge(kafkaConsumerGroupOffsetStub);
-            await sleep(6000);
+            offsetChecker.registerOffsetGauge(kafkaConsumerGroupOffsetStub, 1000);
+            await sleep(2000);
             should(kafkaConsumerGroupOffsetStub.set.callCount).eql(2);
             should(kafkaConsumerGroupOffsetStub.set.args[0][0]).deepEqual({
                 topic: 'topicA',
@@ -338,8 +338,8 @@ describe('Testing consumer offset out of sync checker', async function () {
                     'partitionA': [70],
                 }
             });
-            offsetChecker.registerOffsetGauge(kafkaConsumerGroupOffsetStub);
-            await sleep(6000);
+            offsetChecker.registerOffsetGauge(kafkaConsumerGroupOffsetStub, 1000);
+            await sleep(2000);
             should(kafkaConsumerGroupOffsetStub.set.callCount).eql(0);
         });
     });

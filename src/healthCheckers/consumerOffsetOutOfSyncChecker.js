@@ -57,7 +57,7 @@ module.exports = class ConsumerOffsetOutOfSyncChecker {
         });
     }
 
-    async registerOffsetGauge(kafkaConsumerGroupOffset) {
+    async registerOffsetGauge(kafkaConsumerGroupOffset, checkerInterval) {
         let offsetUpdate = async () => {
             let currentOffsetArr = await getOffsetsArray(this.consumer, this.offset, this.logger);
             if (currentOffsetArr) {
@@ -69,7 +69,7 @@ module.exports = class ConsumerOffsetOutOfSyncChecker {
                 });
             }
         };
-        setInterval(offsetUpdate, 5000).unref();
+        setInterval(offsetUpdate, checkerInterval).unref();
     }
 };
 
@@ -104,7 +104,6 @@ function isOffsetsInSync(notIncrementedTopicPayloads, zookeeperOffsets, kafkaOff
     let lastErrorToHealthCheck;
     notIncrementedTopicPayloads.forEach(function (topicPayload) {
         let {topic, partition, offset} = topicPayload;
-
         if (zookeeperOffsets && zookeeperOffsets[topic] && zookeeperOffsets[topic][partition]) {
             let zkLatestOffset = zookeeperOffsets[topic][partition][0];
             let unhandledMessages = zkLatestOffset - offset;
@@ -131,7 +130,7 @@ function isOffsetsInSync(notIncrementedTopicPayloads, zookeeperOffsets, kafkaOff
 
 async function getOffsetsArray(consumer, offset, logger) {
     if (consumer.topicPayloads && consumer.topicPayloads.length > 0) {
-        let offsetsArr = new Array(consumer.topicPayloads.length);
+        let consumerGroupOffsetDifference = new Array(consumer.topicPayloads.length);
         let offsetsPayloads = buildOffsetRequestPayloads(consumer.topicPayloads);
         return new Promise(function (resolve, reject) {
             offset.fetch(offsetsPayloads, function (err, zookeeperOffsets) {
@@ -143,14 +142,14 @@ async function getOffsetsArray(consumer, offset, logger) {
                     let {topic, partition, offset} = topicPayload;
                     if (zookeeperOffsets && zookeeperOffsets[topic] && zookeeperOffsets[topic][partition]) {
                         let zkLatestOffset = zookeeperOffsets[topic][partition][0];
-                        offsetsArr[i] = {
+                        consumerGroupOffsetDifference[i] = {
                             topic: topic,
                             offset: zkLatestOffset - offset,
                             partition: partition
                         };
                     }
                 });
-                return resolve(offsetsArr);
+                return resolve(consumerGroupOffsetDifference);
             });
         });
     }

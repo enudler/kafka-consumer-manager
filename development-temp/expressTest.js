@@ -15,8 +15,8 @@ let configuration = {
     AutoCommit: false,
     ThrottlingThreshold: 25,
     ThrottlingCheckIntervalMs: 10000,
-    shouldExposeMetrics: true,
-    durationBuckets: [0.1, 0.2],
+    ExposePrometheusMetrics: true,
+    PrometheusHistogramBuckets: [0.1, 0.2],
 
     ResumePauseCheckFunction: () => {
         return Promise.resolve(true);
@@ -24,31 +24,52 @@ let configuration = {
     MessageFunction: (message) => {
         return new Promise((resolve, reject) => {
             setTimeout(() => {
-                console.log(`handling message ${JSON.stringify(message)}`)
-                if (JSON.parse(message.value).message === 'fail') {
+                console.log(`handling message ${JSON.stringify(message)}`);
+                if (JSON.parse(message.value).message === 'failA' || JSON.parse(message.value).message === 'failB') {
                     return reject();
                 }
                 return resolve();
             }, 500);
         });
+    },
+    ErrorMessageFunction: (message) => {
+        // return new Promise((resolve, reject) => {
+        //     setTimeout(() => {
+        //         console.log(`handling message ${JSON.stringify(message)}`);
+        //         if (JSON.parse(message.value).message === 'failA' || JSON.parse(message.value).message === 'failB') {
+        //             return reject();
+        //         }
+        //         return resolve();
+        //     }, 500);
+        // });
+        console.log('ERROR FUNCTION!!!');
     }
 };
 const app = express();
 
 app.use(bodyParser.json());
 
-app.post('/', (req, res) => {
+app.post('/A', (req, res) => {
     console.log('body is: ' + JSON.stringify(req.body));
     kafkaManager.send(JSON.stringify({hello: 'keya'}), 'A');
-    kafkaManager.send(JSON.stringify({hello: 'keyb'}), 'B');
-
     res.status(200);
     res.json(req.body);
 });
-app.post('/failure', (req, res) => {
+app.post('/B', (req, res) => {
     console.log('body is: ' + JSON.stringify(req.body));
-    kafkaManager.send(JSON.stringify({message: 'fail'}), 'A');
-
+    kafkaManager.send(JSON.stringify({hello: 'keyb'}), 'B');
+    res.status(200);
+    res.json(req.body);
+});
+app.post('/failureA', (req, res) => {
+    console.log('body is: ' + JSON.stringify(req.body));
+    kafkaManager.send(JSON.stringify({message: 'failA'}), 'A');
+    res.status(200);
+    res.json(req.body);
+});
+app.post('/failureB', (req, res) => {
+    console.log('body is: ' + JSON.stringify(req.body));
+    kafkaManager.send(JSON.stringify({message: 'failB'}), 'B');
     res.status(200);
     res.json(req.body);
 });
