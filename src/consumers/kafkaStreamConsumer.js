@@ -8,7 +8,8 @@ let kafka = require('kafka-node'),
 module.exports = class KafkaStreamConsumer {
     init(config, logger) {
         let {
-            KafkaUrl, GroupId, Topics, MessageFunction, ErrorMessageFunction, FetchMaxBytes,
+            KafkaUrl, GroupId, Topics, MessageFunction, ErrorMessageFunction = () => {
+            }, FetchMaxBytes,
             AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000, ExposePrometheusMetrics, PrometheusHistogramBuckets, ConsumerGroupOffsetCheckerInterval = 5000
         } = config;
 

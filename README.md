@@ -62,7 +62,9 @@ await kafkaConsumerManager.init(configuration)
 * `Topics` &ndash; Array of topics that should be consumed.
 * `ResumePauseIntervalMs` &ndash; Interval of when to run the ResumePauseCheckFunction (Optional).
 * `ResumePauseCheckFunction` &ndash; Promise that should always be resolve. In case of resolve with true value, the consumer will be resumed, if false it will be paused (Mandatory if ResumePauseIntervalMs provided). this function accepts one param (consumer).
-* `MessageFunction` &ndash; Promise that should always be resolve. this function applied to each consumed message, It accepts one param (message), please make sure to resolve only after messages is considered as done. Don't change the original message, it may cause it may cause unstable behaviour in getLastMessage function.
+* `MessageFunction` &ndash; Promise that should always be resolve. this function applied to each consumed message, It accepts one param (message). Don't change the original message, it may cause it may cause unstable behaviour in getLastMessage function.
+* `ErrorMessageFunction(message, err)` &ndash; optional, a function being called once `MessageFunction` rejects.
+
 * `FetchMaxBytes` &ndash; The maximum bytes to include in the message set for this partition. This helps bound the size of the response. (Default 1024^2).
 * `WriteBackDelay` &ndash; Delay the produced messages by ms. (optional).
 * `AutoCommit` &ndash; Boolean, If AutoCommit is false, the consumer will queue messages from each partition to a specific queue and will handle messages by the order and commit the offset when it's done.
@@ -72,6 +74,7 @@ await kafkaConsumerManager.init(configuration)
     *please note that prom-client is a peer-dependency meaning it have to exist in your application.
 * `PrometheusHistogramBuckets` &ndash; optional, array of doubles defining bucket size for kafka_request_duration_seconds_bucket in seconds in which the kafka message processing time of your service will be written.
 default values are: [0.001, 0.003, 0.005, 0.015, 0.03, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5] 
+* `ConsumerGroupOffsetCheckerInterval` optional, the size of the check consumer group diff offset in milliseconds. default size is 5000. 
 
 
 ##### AutoCommit: true settings

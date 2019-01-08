@@ -207,8 +207,8 @@ describe('Testing kafkaThrottlingManager component', () => {
             kafkaThrottlingManager = new KafkaThrottlingManager();
             kafkaThrottlingManager.init(1, 5000, ['TopicA', 'TopicB'],
                 () => Promise.reject(new Error('some error message')),
-                (msg) => {
-                    return errorCallbackStub(msg);
+                (msg, err) => {
+                    return errorCallbackStub(msg, err);
                 },
                 kafkaStreamConsumer, logger);
         });
@@ -242,6 +242,7 @@ describe('Testing kafkaThrottlingManager component', () => {
             should(commitFunctionStub.calledOnce).eql(true);
             should(errorCallbackStub.calledOnce).eql(true);
             should(errorCallbackStub.args[0][0]).deepEqual(message);
+            should(errorCallbackStub.args[0][1]).deepEqual(new Error('some error message'));
             should(logErrorStub.args[0]).eql(['MessageFunction was rejected', new Error('some error message')]);
             should(histogram.startTimer.calledOnce).eql(true);
             should(histogram.startTimer.args[0][0]).deepEqual({topic: 'TopicA'});
