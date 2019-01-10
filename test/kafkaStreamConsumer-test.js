@@ -7,8 +7,7 @@ let kafka = require('kafka-node'),
     KafkaStreamConsumer = require('../src/consumers/kafkaStreamConsumer'),
     assert = require('assert'),
     ConsumerOffsetOutOfSyncCheckerStub = require('../src/healthCheckers/consumerOffsetOutOfSyncChecker'),
-    _ = require('lodash'),
-    prometheusConfig = require('../src/prometheus/prometheus-config');
+    _ = require('lodash');
 
 let sandbox, logErrorStub, logTraceStub, logInfoStub, consumerGroupStreamStub,
     consumerStreamStub, consumerEventHandlers, resumeStub, pauseStub, consumer,
@@ -565,7 +564,6 @@ describe('Testing metrics feature', function () {
         setTimeout(() => {
             consumerEventHandlers.connect();
         }, 100);
-
     });
 
     after(function () {

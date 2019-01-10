@@ -335,7 +335,7 @@ describe('Testing consumer offset out of sync checker', async function () {
             consumerStub.topicPayloads = [];
             fetchStub.yields(undefined, {
                 'topicA': {
-                    'partitionA': [70],
+                    'partitionA': [70]
                 }
             });
             offsetChecker.registerOffsetGauge(kafkaConsumerGroupOffsetStub, 1000);

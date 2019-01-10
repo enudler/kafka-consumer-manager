@@ -1,5 +1,6 @@
 let prometheus = require('prom-client');
-let prometheusConfig = require('./prometheus-config');
+let prometheusConfig =
+    require('./prometheus-config');
 
 function prometheusMetricDecorator(originalFunction, histogramMetric) {
     return (message) => {

@@ -16,7 +16,7 @@ let configuration = {
     ThrottlingThreshold: 25,
     ThrottlingCheckIntervalMs: 10000,
     ExposePrometheusMetrics: true,
-    PrometheusHistogramBuckets: [0.1, 0.2],
+    PrometheusHistogramBuckets: [0.1, 0.2, 0.5, 0.6, 0.7, 1],
 
     ResumePauseCheckFunction: () => {
         return Promise.resolve(true);
@@ -26,22 +26,13 @@ let configuration = {
             setTimeout(() => {
                 console.log(`handling message ${JSON.stringify(message)}`);
                 if (JSON.parse(message.value).message === 'failA' || JSON.parse(message.value).message === 'failB') {
-                    return reject();
+                    return reject(new Error());
                 }
                 return resolve();
             }, 500);
         });
     },
     ErrorMessageFunction: (message) => {
-        // return new Promise((resolve, reject) => {
-        //     setTimeout(() => {
-        //         console.log(`handling message ${JSON.stringify(message)}`);
-        //         if (JSON.parse(message.value).message === 'failA' || JSON.parse(message.value).message === 'failB') {
-        //             return reject();
-        //         }
-        //         return resolve();
-        //     }, 500);
-        // });
         console.log('ERROR FUNCTION!!!');
     }
 };
@@ -73,7 +64,7 @@ app.post('/failureB', (req, res) => {
     res.status(200);
     res.json(req.body);
 });
-setInterval(() => kafkaManager.validateOffsetsAreSynced(), 5000);
+setInterval(() => kafkaManager.validateOffsetsAreSynced(), 6000);
 app.get('/metrics', (req, res) => {
     res.set('Content-Type', prometheus.register.contentType);
     setTimeout(() => {

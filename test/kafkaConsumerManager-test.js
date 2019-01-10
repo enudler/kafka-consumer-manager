@@ -31,8 +31,6 @@ let fullConfigurationCommitTrue = {
     KafkaOffsetDiffThreshold: '3',
     Topics: ['topic-a', 'topic-b'],
     AutoCommit: true,
-    // ThrottlingCheckIntervalMs: 1000,
-    // ThrottlingThreshold: 100,
     MessageFunction: (msg) => {
     }
 };
@@ -297,7 +295,6 @@ describe('Verify metrics', () => {
     let producerInitStub,
         consumerInitStub, dependencyInitStub,
         throttlingInitStub,
-        consumerSetMessageFunctionStub,
         consumerGetOffsetCheckerStub,
         streamConsumerGetOffsetCheckerStub,
         registerOffsetGaugeObj,
@@ -305,14 +302,6 @@ describe('Verify metrics', () => {
         initQueryHistogramStub,
         metricDecoratorStub,
         consumerStreamInitStub;
-
-    // beforeEach(() => {
-    //     // producerInitStub.resolves();
-    //     // consumerInitStub.resolves();
-    //     // consumerStreamInitStub.resolves({});
-    //     dependencyInitStub.returns({});
-    //     throttlingInitStub.returns({});
-    // });
 
     beforeEach(() => {
         sandbox = sinon.sandbox.create();
@@ -329,7 +318,6 @@ describe('Verify metrics', () => {
 
         streamConsumerGetOffsetCheckerStub = sandbox.stub(KafkaStreamConsumer.prototype, 'getConsumerOffsetOutOfSyncChecker');
         streamConsumerGetOffsetCheckerStub.returns(registerOffsetGaugeObj);
-        consumerSetMessageFunctionStub = sandbox.stub(KafkaStreamConsumer.prototype, 'setMessageFunction');
         consumerStreamInitStub = sandbox.stub(KafkaStreamConsumer.prototype, 'init');
         dependencyInitStub = sandbox.stub(DependencyChecker.prototype, 'init');
         throttlingInitStub = sandbox.stub(KafkaThrottlingManager.prototype, 'init');
@@ -359,7 +347,6 @@ describe('Verify metrics', () => {
         should(registerOffsetGaugeObj.registerOffsetGauge.args[0][0]).eql('kafkaConsumerGroupOffset');
         should(registerOffsetGaugeObj.registerOffsetGauge.args[0][1]).eql(5000);
         should(initQueryHistogramStub.notCalled).equal(true);
-        should(consumerSetMessageFunctionStub.notCalled).equal(true);
         should(metricDecoratorStub.notCalled).equal(true);
     });
 
@@ -376,9 +363,8 @@ describe('Verify metrics', () => {
         should(registerOffsetGaugeObj.registerOffsetGauge.args[0][0]).eql('kafkaConsumerGroupOffset');
         should(registerOffsetGaugeObj.registerOffsetGauge.args[0][1]).eql(5000);
         should(initQueryHistogramStub.calledOnce).equal(true);
-        should(consumerSetMessageFunctionStub.calledOnce).equal(true);
         should(metricDecoratorStub.calledOnce).equal(true);
-        should(metricDecoratorStub.args[0][0]).eql(conf.MessageFunction);
+        should(metricDecoratorStub.args[0][0]).eql(fullConfigurationCommitFalse.MessageFunction);
         should(metricDecoratorStub.args[0][1]).eql('kafkaQueryHistogram');
     });
 
@@ -396,9 +382,8 @@ describe('Verify metrics', () => {
         should(registerOffsetGaugeObj.registerOffsetGauge.args[0][0]).eql('kafkaConsumerGroupOffset');
         should(registerOffsetGaugeObj.registerOffsetGauge.args[0][1]).eql(8000);
         should(initQueryHistogramStub.calledOnce).equal(true);
-        should(consumerSetMessageFunctionStub.calledOnce).equal(true);
         should(metricDecoratorStub.calledOnce).equal(true);
-        should(metricDecoratorStub.args[0][0]).eql(conf.MessageFunction);
+        should(metricDecoratorStub.args[0][0]).eql(fullConfigurationCommitFalse.MessageFunction);
         should(metricDecoratorStub.args[0][1]).eql('kafkaQueryHistogram');
     });
 });

@@ -74,10 +74,6 @@ module.exports = class KafkaStreamConsumer {
         });
     }
 
-    setMessageFunction(messageFunction) {
-        this.kafkaThrottlingManager.setMessageFunction(messageFunction);
-    }
-
     pause() {
         if (this.consumerEnabled) {
             this.logger.info('Suspending Kafka consumption');

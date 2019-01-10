@@ -36,9 +36,6 @@ module.exports = class KafkaThrottlingManager {
         clearInterval(this.intervalId);
     }
 
-    setMessageFunction(callbackPromise) {
-        this.callbackPromise = callbackPromise;
-    }
 };
 
 function generateThrottlingQueueInstance(callbackPromise, callbackErrorPromise, logger) {
