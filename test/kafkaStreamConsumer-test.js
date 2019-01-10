@@ -189,7 +189,7 @@ describe('Testing events method', function () {
         beforeEach(async () => {
             setTimeout(() => {
                 consumerEventHandlers.connect();
-            }, 100);
+            }, 200);
             await consumer.init(baseConfiguration, logger);
         });
 
@@ -205,7 +205,7 @@ describe('Testing events method', function () {
             sinon.assert.calledOnce(logTraceStub);
             sinon.assert.calledWithExactly(logTraceStub, 'consumerGroupStream got message: topic: my_topic, partition: 123, offset: 5');
             sinon.assert.calledOnce(handleIncomingMessageStub);
-            sinon.assert.calledWithExactly(handleIncomingMessageStub, msg, undefined);
+            sinon.assert.calledWithExactly(handleIncomingMessageStub, msg);
         });
         it('testing listening functions - on error', async function () {
             let err = {
@@ -521,7 +521,6 @@ describe('Testing closeConnection method', function () {
     });
 });
 
-
 describe('Testing metrics feature', function () {
     before(() => {
         sandbox = sinon.sandbox.create();
@@ -575,18 +574,6 @@ describe('Testing metrics feature', function () {
 
     afterEach(function () {
         sandbox.reset();
-    });
-
-    it('Testing prometheus initializiation - ExposePrometheusMetrics=true', async function () {
-        baseConfiguration.ExposePrometheusMetrics = true;
-        await consumer.init(baseConfiguration, logger);
-        consumerGroupStreamStub.returns(consumerStreamStub);
-        should(consumer.kafkaQueryHistogram.name).equal('kafka_request_duration_seconds');
-        should(consumer.kafkaQueryHistogram.help).equal('The duration time of processing kafka specific message');
-        should(consumer.kafkaQueryHistogram.upperBounds).deepEqual(prometheusConfig.BUCKETS.PROMETHEUS_KAFKA_DURATION_SIZES_BUCKETS);
-        should(consumer.kafkaConsumerGroupOffset.name).equal('kafka_consumer_group_offset_diff');
-        should(consumer.kafkaConsumerGroupOffset.help).equal('The service\'s consumer groups offset');
-        should(consumer.kafkaConsumerGroupOffset.labelNames).deepEqual(['topic', 'consumer_group', 'partition']);
     });
 
     it('Testing prometheus initializiation - ExposePrometheusMetrics=false (unspecified)', async function () {

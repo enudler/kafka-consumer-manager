@@ -1,16 +1,14 @@
 let kafka = require('kafka-node'),
     ConsumerOffsetOutOfSyncChecker = require('../healthCheckers/consumerOffsetOutOfSyncChecker'),
     KafkaThrottlingManager = require('../throttling/kafkaThrottlingManager'),
-    _ = require('lodash'),
-    prometheusConfig = require('../prometheus/prometheus-config'),
-    prometheus = require('prom-client');
+    _ = require('lodash');
 
 module.exports = class KafkaStreamConsumer {
     init(config, logger) {
         let {
             KafkaUrl, GroupId, Topics, MessageFunction, ErrorMessageFunction = () => {
             }, FetchMaxBytes,
-            AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000, ExposePrometheusMetrics, PrometheusHistogramBuckets, ConsumerGroupOffsetCheckerInterval = 5000
+            AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000
         } = config;
 
         return new Promise((resolve, reject) => {
@@ -24,19 +22,7 @@ module.exports = class KafkaStreamConsumer {
                 fetchMaxBytes: FetchMaxBytes || 1024 * 1024,
                 autoCommitIntervalMs: AutoCommitIntervalMs || 5000
             };
-            if (ExposePrometheusMetrics) {
-                this.kafkaQueryHistogram = new prometheus.Histogram({
-                    name: prometheusConfig.METRIC_NAMES.KAFKA_REQUEST_DURATION,
-                    help: 'The duration time of processing kafka specific message',
-                    labelNames: ['status', 'topic'],
-                    buckets: PrometheusHistogramBuckets || prometheusConfig.BUCKETS.PROMETHEUS_KAFKA_DURATION_SIZES_BUCKETS
-                });
-                this.kafkaConsumerGroupOffset = new prometheus.Gauge({
-                    name: prometheusConfig.METRIC_NAMES.CONSUMER_GROUP_OFFSET,
-                    help: 'The service\'s consumer groups offset',
-                    labelNames: ['topic', 'consumer_group', 'partition']
-                });
-            }
+
             let consumer = new kafka.ConsumerGroupStream(options, Topics);
             Object.assign(this, {
                 logger: logger,
@@ -51,7 +37,7 @@ module.exports = class KafkaStreamConsumer {
             this.consumer.on('data', function (message) {
                 this.lastMessage = message;
                 this.logger.trace(`consumerGroupStream got message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
-                this.kafkaThrottlingManager.handleIncomingMessage(message, this.getQueryHistogram());
+                this.kafkaThrottlingManager.handleIncomingMessage(message);
             }.bind(this));
 
             this.consumer.on('error', function (err) {
@@ -85,10 +71,11 @@ module.exports = class KafkaStreamConsumer {
             this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker();
             this.consumerOffsetOutOfSyncChecker.init(this.consumer.consumerGroup,
                 config.KafkaOffsetDiffThreshold, this.logger);
-            if (ExposePrometheusMetrics) {
-                this.consumerOffsetOutOfSyncChecker.registerOffsetGauge(this.getConsumerGroupDiff(), ConsumerGroupOffsetCheckerInterval);
-            }
         });
+    }
+
+    setMessageFunction(messageFunction) {
+        this.kafkaThrottlingManager.setMessageFunction(messageFunction);
     }
 
     pause() {
@@ -151,19 +138,15 @@ module.exports = class KafkaStreamConsumer {
         return this.lastMessage;
     }
 
-    getQueryHistogram() {
-        return this.kafkaQueryHistogram;
-    }
-
-    getConsumerGroupDiff() {
-        return this.kafkaConsumerGroupOffset;
-    }
-
     commit(message) {
         this.consumer.commit(message, this.commitEachMessage);
     }
 
     on(eventName, eventHandler) {
         return this.consumer.on(eventName, eventHandler);
+    }
+
+    getConsumerOffsetOutOfSyncChecker() {
+        return this.consumerOffsetOutOfSyncChecker;
     }
 };

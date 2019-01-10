@@ -153,4 +153,8 @@ module.exports = class KafkaConsumer {
     on(eventName, eventHandler) {
         return this.consumer.on(eventName, eventHandler);
     }
+
+    getConsumerOffsetOutOfSyncChecker() {
+        return this.consumerOffsetOutOfSyncChecker;
+    }
 };

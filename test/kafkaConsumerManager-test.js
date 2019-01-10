@@ -8,6 +8,7 @@ let sinon = require('sinon'),
     KafkaStreamConsumer = require('../src/consumers/kafkaStreamConsumer'),
     DependencyChecker = require('../src/healthCheckers/dependencyChecker'),
     KafkaThrottlingManager = require('../src/throttling/kafkaThrottlingManager'),
+    prometheusUtils = require('../src/prometheus/prometheus-utils'),
     bunyan = require('bunyan'),
     _ = require('lodash');
 
@@ -18,7 +19,8 @@ let MandatoryFieldsConfiguration = {
     KafkaOffsetDiffThreshold: '3',
     Topics: ['topic-a', 'topic-b'],
     AutoCommit: true,
-    MessageFunction: (msg) => { }
+    MessageFunction: (msg) => {
+    }
 };
 
 let fullConfigurationCommitTrue = {
@@ -31,7 +33,8 @@ let fullConfigurationCommitTrue = {
     AutoCommit: true,
     // ThrottlingCheckIntervalMs: 1000,
     // ThrottlingThreshold: 100,
-    MessageFunction: (msg) => { }
+    MessageFunction: (msg) => {
+    }
 };
 
 let fullConfigurationCommitFalse = {
@@ -44,7 +47,8 @@ let fullConfigurationCommitFalse = {
     AutoCommit: false,
     ThrottlingCheckIntervalMs: 1000,
     ThrottlingThreshold: 100,
-    MessageFunction: (msg) => { }
+    MessageFunction: (msg) => {
+    }
 };
 
 describe('Verify mandatory params', () => {
@@ -83,7 +87,7 @@ describe('Verify mandatory params', () => {
         should(consumerStreamInitStub.calledOnce).eql(false);
         should(dependencyInitStub.calledOnce).eql(true);
         should(loggerChildStub.calledOnce).eql(true);
-        should(loggerChildStub.args[0][0]).eql({ consumer_name: fullConfigurationCommitTrue.LoggerName });
+        should(loggerChildStub.args[0][0]).eql({consumer_name: fullConfigurationCommitTrue.LoggerName});
     });
 
     it('All params exists - kafkaStreamConsumer', async () => {
@@ -93,7 +97,7 @@ describe('Verify mandatory params', () => {
         should(consumerStreamInitStub.calledOnce).eql(true);
         should(dependencyInitStub.calledOnce).eql(true);
         should(loggerChildStub.calledOnce).eql(true);
-        should(loggerChildStub.args[0][0]).eql({ consumer_name: fullConfigurationCommitTrue.LoggerName });
+        should(loggerChildStub.args[0][0]).eql({consumer_name: fullConfigurationCommitTrue.LoggerName});
     });
 
     it('All params are missing', async () => {
@@ -158,7 +162,7 @@ describe('Verify mandatory params', () => {
         should(consumerStreamInitStub.calledOnce).eql(false);
         should(dependencyInitStub.calledOnce).eql(true);
         should(loggerChildStub.calledOnce).eql(true);
-        should(loggerChildStub.args[0][0]).eql({ consumer_name: fullConfigurationCommitTrue.LoggerName });
+        should(loggerChildStub.args[0][0]).eql({consumer_name: fullConfigurationCommitTrue.LoggerName});
     });
 });
 
@@ -284,5 +288,117 @@ describe('Verify emitter', () => {
         should(consumerStreamOnStub.args[0]).eql(['error', onStub]);
         should(onStub.calledOnce).equal(true);
         should(onStub.args[0][0]).eql(err);
+    });
+});
+
+describe('Verify metrics', () => {
+    let sandbox;
+    let kafkaConsumerManager = new KafkaConsumerManager();
+    let producerInitStub,
+        consumerInitStub, dependencyInitStub,
+        throttlingInitStub,
+        consumerSetMessageFunctionStub,
+        consumerGetOffsetCheckerStub,
+        streamConsumerGetOffsetCheckerStub,
+        registerOffsetGaugeObj,
+        initConsumerGroupOffsetCheckerStub,
+        initQueryHistogramStub,
+        metricDecoratorStub,
+        consumerStreamInitStub;
+
+    // beforeEach(() => {
+    //     // producerInitStub.resolves();
+    //     // consumerInitStub.resolves();
+    //     // consumerStreamInitStub.resolves({});
+    //     dependencyInitStub.returns({});
+    //     throttlingInitStub.returns({});
+    // });
+
+    beforeEach(() => {
+        sandbox = sinon.sandbox.create();
+        producerInitStub = sandbox.stub(KafkaProducer.prototype, 'init');
+        consumerInitStub = sandbox.stub(KafkaConsumer.prototype, 'init');
+        initConsumerGroupOffsetCheckerStub = sandbox.stub(prometheusUtils, 'initKafkaConsumerGroupOffsetGauge');
+        initQueryHistogramStub = sandbox.stub(prometheusUtils, 'initKafkaQueryHistogram');
+        metricDecoratorStub = sandbox.stub(prometheusUtils, 'prometheusMetricDecorator');
+        registerOffsetGaugeObj = {
+            registerOffsetGauge: sandbox.stub()
+        };
+        consumerGetOffsetCheckerStub = sandbox.stub(KafkaConsumer.prototype, 'getConsumerOffsetOutOfSyncChecker');
+        consumerGetOffsetCheckerStub.returns(registerOffsetGaugeObj);
+
+        streamConsumerGetOffsetCheckerStub = sandbox.stub(KafkaStreamConsumer.prototype, 'getConsumerOffsetOutOfSyncChecker');
+        streamConsumerGetOffsetCheckerStub.returns(registerOffsetGaugeObj);
+        consumerSetMessageFunctionStub = sandbox.stub(KafkaStreamConsumer.prototype, 'setMessageFunction');
+        consumerStreamInitStub = sandbox.stub(KafkaStreamConsumer.prototype, 'init');
+        dependencyInitStub = sandbox.stub(DependencyChecker.prototype, 'init');
+        throttlingInitStub = sandbox.stub(KafkaThrottlingManager.prototype, 'init');
+        producerInitStub.resolves();
+        consumerInitStub.resolves();
+        consumerStreamInitStub.resolves({});
+        dependencyInitStub.returns({});
+        throttlingInitStub.returns({});
+    });
+
+    afterEach(() => {
+        sandbox.restore();
+    });
+
+    after(() => {
+        sandbox.restore();
+    });
+    it('verify right metrics init, autoCommit = true', async () => {
+        let conf = _.cloneDeep(fullConfigurationCommitTrue);
+        conf.ExposePrometheusMetrics = true;
+        initConsumerGroupOffsetCheckerStub.returns('kafkaConsumerGroupOffset');
+        await kafkaConsumerManager.init(conf);
+        should(prometheusUtils.initKafkaConsumerGroupOffsetGauge.calledOnce).equal(true);
+        should(prometheusUtils.initKafkaConsumerGroupOffsetGauge.args[0].length).eql(0);
+        should(registerOffsetGaugeObj.registerOffsetGauge.calledOnce).equal(true);
+        should(consumerGetOffsetCheckerStub.calledOnce).equal(true);
+        should(registerOffsetGaugeObj.registerOffsetGauge.args[0][0]).eql('kafkaConsumerGroupOffset');
+        should(registerOffsetGaugeObj.registerOffsetGauge.args[0][1]).eql(5000);
+        should(initQueryHistogramStub.notCalled).equal(true);
+        should(consumerSetMessageFunctionStub.notCalled).equal(true);
+        should(metricDecoratorStub.notCalled).equal(true);
+    });
+
+    it('verify right metrics init, autoCommit = false', async () => {
+        let conf = _.cloneDeep(fullConfigurationCommitFalse);
+        conf.ExposePrometheusMetrics = true;
+        initConsumerGroupOffsetCheckerStub.returns('kafkaConsumerGroupOffset');
+        initQueryHistogramStub.returns('kafkaQueryHistogram');
+        await kafkaConsumerManager.init(conf);
+        should(prometheusUtils.initKafkaConsumerGroupOffsetGauge.calledOnce).equal(true);
+        should(prometheusUtils.initKafkaConsumerGroupOffsetGauge.args[0].length).eql(0);
+        should(registerOffsetGaugeObj.registerOffsetGauge.calledOnce).equal(true);
+        should(streamConsumerGetOffsetCheckerStub.calledOnce).equal(true);
+        should(registerOffsetGaugeObj.registerOffsetGauge.args[0][0]).eql('kafkaConsumerGroupOffset');
+        should(registerOffsetGaugeObj.registerOffsetGauge.args[0][1]).eql(5000);
+        should(initQueryHistogramStub.calledOnce).equal(true);
+        should(consumerSetMessageFunctionStub.calledOnce).equal(true);
+        should(metricDecoratorStub.calledOnce).equal(true);
+        should(metricDecoratorStub.args[0][0]).eql(conf.MessageFunction);
+        should(metricDecoratorStub.args[0][1]).eql('kafkaQueryHistogram');
+    });
+
+    it('verify right metrics init, autoCommit = false, diff interval = 8000', async () => {
+        let conf = _.cloneDeep(fullConfigurationCommitFalse);
+        conf.ExposePrometheusMetrics = true;
+        conf.ConsumerGroupOffsetCheckerInterval = 8000;
+        initConsumerGroupOffsetCheckerStub.returns('kafkaConsumerGroupOffset');
+        initQueryHistogramStub.returns('kafkaQueryHistogram');
+        await kafkaConsumerManager.init(conf);
+        should(prometheusUtils.initKafkaConsumerGroupOffsetGauge.calledOnce).equal(true);
+        should(prometheusUtils.initKafkaConsumerGroupOffsetGauge.args[0].length).eql(0);
+        should(registerOffsetGaugeObj.registerOffsetGauge.calledOnce).equal(true);
+        should(streamConsumerGetOffsetCheckerStub.calledOnce).equal(true);
+        should(registerOffsetGaugeObj.registerOffsetGauge.args[0][0]).eql('kafkaConsumerGroupOffset');
+        should(registerOffsetGaugeObj.registerOffsetGauge.args[0][1]).eql(8000);
+        should(initQueryHistogramStub.calledOnce).equal(true);
+        should(consumerSetMessageFunctionStub.calledOnce).equal(true);
+        should(metricDecoratorStub.calledOnce).equal(true);
+        should(metricDecoratorStub.args[0][0]).eql(conf.MessageFunction);
+        should(metricDecoratorStub.args[0][1]).eql('kafkaQueryHistogram');
     });
 });

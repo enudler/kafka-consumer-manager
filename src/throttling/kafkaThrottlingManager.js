@@ -1,7 +1,6 @@
 'use-strict';
 
-let async = require('async'),
-    prometheusDecorator = require('../prometheus/prometheus-decorator');
+let async = require('async');
 
 module.exports = class KafkaThrottlingManager {
     init(messagesInMemoryThreshold, interval, topics, callbackPromise, callbackErrorPromise, kafkaStreamConsumer, logger) {
@@ -22,14 +21,11 @@ module.exports = class KafkaThrottlingManager {
         }.bind(this), interval);
     }
 
-    handleIncomingMessage(message, histogramMetric) {
-        if (histogramMetric) {
-            message.histogramMetic = histogramMetric;
-        }
+    handleIncomingMessage(message) {
         let partition = message.partition;
         let topic = message.topic;
         if (!this.innerQueues[topic][partition]) {
-            this.innerQueues[topic][partition] = generateThrottlingQueueInstance((histogramMetric ? prometheusDecorator(this.callbackPromise) : this.callbackPromise), this.callbackErrorPromise, this.logger);
+            this.innerQueues[topic][partition] = generateThrottlingQueueInstance(this.callbackPromise, this.callbackErrorPromise, this.logger);
         }
         this.innerQueues[topic][partition].push(message, () => {
             this.kafkaStreamConsumer.commit(message);
@@ -38,6 +34,10 @@ module.exports = class KafkaThrottlingManager {
 
     stop() {
         clearInterval(this.intervalId);
+    }
+
+    setMessageFunction(callbackPromise) {
+        this.callbackPromise = callbackPromise;
     }
 };
 

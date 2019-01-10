@@ -142,55 +142,6 @@ describe('Testing kafkaThrottlingManager component', () => {
             should(commitFunctionStub.calledOnce).eql(true);
             should(logTraceStub.args[0][0]).equal(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
         });
-
-    });
-
-    describe('handleIncomingMessage with metrics method tests', () => {
-        before(async () => {
-            logInfoStub = sandbox.stub();
-            logTraceStub = sandbox.stub();
-            logger = {error: sandbox.stub(), trace: logTraceStub, info: logInfoStub};
-
-            commitFunctionStub = sandbox.stub();
-            kafkaStreamConsumer.commit = commitFunctionStub;
-            kafkaThrottlingManager = new KafkaThrottlingManager();
-            kafkaThrottlingManager.init(1, 5000, ['TopicA', 'TopicB'], (msg) => {
-                console.log('Invoking callback fn' + msg.msg);
-                return Promise.resolve();
-            }, () => Promise.resolve(), kafkaStreamConsumer, logger);
-        });
-
-        afterEach(() => {
-            sandbox.reset();
-        });
-
-        after(() => {
-            kafkaThrottlingManager.stop();
-            sandbox.restore();
-        });
-
-        it('call to handleIncomingMessage with histogramMetric should write to inner queue and invoke histogram register', async () => {
-            sandbox.resetHistory();
-            let message = {
-                topic: 'TopicA',
-                partition: 4,
-                msg: 'some-message3',
-                offset: 1004
-            };
-            let endStub = sandbox.stub();
-            let histogram = {
-                startTimer: sandbox.stub()
-            };
-            histogram.startTimer.returns(endStub);
-            kafkaThrottlingManager.handleIncomingMessage(message, histogram);
-            await sleep(100);
-            should(commitFunctionStub.calledOnce).eql(true);
-            should(logTraceStub.args[0][0]).equal(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
-            should(histogram.startTimer.calledOnce).eql(true);
-            should(histogram.startTimer.args[0][0]).deepEqual({topic: 'TopicA'});
-            should(endStub.calledOnce).eql(true);
-            should(endStub.args[0][0]).deepEqual({status: 'success'});
-        }).timeout(3000);
     });
 
     describe('handleIncomingMessage is failing', () => {
@@ -244,10 +195,6 @@ describe('Testing kafkaThrottlingManager component', () => {
             should(errorCallbackStub.args[0][0]).deepEqual(message);
             should(errorCallbackStub.args[0][1]).deepEqual(new Error('some error message'));
             should(logErrorStub.args[0]).eql(['MessageFunction was rejected', new Error('some error message')]);
-            should(histogram.startTimer.calledOnce).eql(true);
-            should(histogram.startTimer.args[0][0]).deepEqual({topic: 'TopicA'});
-            should(endStub.calledOnce).eql(true);
-            should(endStub.args[0][0]).deepEqual({status: 'failed'});
         });
         it('handleIncomingMessage should rejected and write it to log ', async () => {
             sandbox.resetHistory();
@@ -271,10 +218,6 @@ describe('Testing kafkaThrottlingManager component', () => {
             should(errorCallbackStub.args[0][0]).deepEqual(message);
             should(logErrorStub.args[0]).eql(['MessageFunction was rejected', new Error('some error message')]);
             should(logErrorStub.args[1][0]).eql('ErrorMessageFunction invocation was rejected');
-            should(histogram.startTimer.calledOnce).eql(true);
-            should(histogram.startTimer.args[0][0]).deepEqual({topic: 'TopicA'});
-            should(endStub.calledOnce).eql(true);
-            should(endStub.args[0][0]).deepEqual({status: 'failed'});
         });
     });
 });
