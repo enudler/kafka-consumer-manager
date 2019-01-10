@@ -4,7 +4,7 @@ let kafka = require('kafka-node'),
     _ = require('lodash');
 
 module.exports = class ConsumerOffsetOutOfSyncChecker {
-    init(consumerGroup, kafkaOffsetDiffThreshold, logger){
+    init(consumerGroup, kafkaOffsetDiffThreshold, logger) {
         Object.assign(this, {
             logger: logger,
             consumer: consumerGroup,
@@ -13,6 +13,7 @@ module.exports = class ConsumerOffsetOutOfSyncChecker {
             previousConsumerReadOffset: _.cloneDeep(consumerGroup.topicPayloads)
         });
     }
+
     validateOffsetsAreSynced() {
         return new Promise((resolve, reject) => {
             if (!this.previousConsumerReadOffset) {
@@ -55,6 +56,21 @@ module.exports = class ConsumerOffsetOutOfSyncChecker {
             }
         });
     }
+
+    async registerOffsetGauge(kafkaConsumerGroupOffset, checkerInterval) {
+        let offsetUpdate = async () => {
+            let currentOffsetArr = await getOffsetsArray(this.consumer, this.offset, this.logger);
+            if (currentOffsetArr) {
+                currentOffsetArr.forEach((offsetObj) => {
+                    kafkaConsumerGroupOffset.set({
+                        topic: offsetObj.topic,
+                        partition: offsetObj.partition
+                    }, offsetObj.offset);
+                });
+            }
+        };
+        setInterval(offsetUpdate, checkerInterval).unref();
+    }
 };
 
 function buildOffsetRequestPayloads(topicPayloads) {
@@ -88,7 +104,6 @@ function isOffsetsInSync(notIncrementedTopicPayloads, zookeeperOffsets, kafkaOff
     let lastErrorToHealthCheck;
     notIncrementedTopicPayloads.forEach(function (topicPayload) {
         let {topic, partition, offset} = topicPayload;
-
         if (zookeeperOffsets && zookeeperOffsets[topic] && zookeeperOffsets[topic][partition]) {
             let zkLatestOffset = zookeeperOffsets[topic][partition][0];
             let unhandledMessages = zkLatestOffset - offset;
@@ -111,4 +126,31 @@ function isOffsetsInSync(notIncrementedTopicPayloads, zookeeperOffsets, kafkaOff
     });
 
     return lastErrorToHealthCheck;
+}
+
+async function getOffsetsArray(consumer, offset, logger) {
+    if (consumer.topicPayloads && consumer.topicPayloads.length > 0) {
+        let consumerGroupOffsetDifference = new Array(consumer.topicPayloads.length);
+        let offsetsPayloads = buildOffsetRequestPayloads(consumer.topicPayloads);
+        return new Promise(function (resolve, reject) {
+            offset.fetch(offsetsPayloads, function (err, zookeeperOffsets) {
+                if (err) {
+                    logger.error(err, 'Monitor Offset: Failed to fetch offsets');
+                    return reject(err);
+                }
+                consumer.topicPayloads.forEach((topicPayload, i) => {
+                    let {topic, partition, offset} = topicPayload;
+                    if (zookeeperOffsets && zookeeperOffsets[topic] && zookeeperOffsets[topic][partition]) {
+                        let zkLatestOffset = zookeeperOffsets[topic][partition][0];
+                        consumerGroupOffsetDifference[i] = {
+                            topic: topic,
+                            offset: zkLatestOffset - offset,
+                            partition: partition
+                        };
+                    }
+                });
+                return resolve(consumerGroupOffsetDifference);
+            });
+        });
+    }
 }

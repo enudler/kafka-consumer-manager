@@ -3,46 +3,52 @@
 let async = require('async');
 
 module.exports = class KafkaThrottlingManager {
-    init(messagesInMemoryThreshold, interval, topics, callbackPromise, kafkaStreamConsumer, logger){
+    init(messagesInMemoryThreshold, interval, topics, callbackPromise, callbackErrorPromise, kafkaStreamConsumer, logger) {
         Object.assign(this, {
             logger: logger,
             kafkaStreamConsumer: kafkaStreamConsumer,
             messagesInMemoryThreshold: messagesInMemoryThreshold,
             callbackPromise: callbackPromise,
+            callbackErrorPromise: callbackErrorPromise,
             innerQueues: {}
         });
         topics.forEach(topic => {
             this.innerQueues[topic] = {};
         });
 
-        this.intervalId = setInterval(function(){
+        this.intervalId = setInterval(function () {
             manageQueues(this.kafkaStreamConsumer, this.messagesInMemoryThreshold, this.innerQueues, this.logger);
         }.bind(this), interval);
     }
 
-    handleIncomingMessage(message){
+    handleIncomingMessage(message) {
         let partition = message.partition;
         let topic = message.topic;
         if (!this.innerQueues[topic][partition]) {
-            this.innerQueues[topic][partition] = generateThrottlingQueueInstance(this.callbackPromise, this.logger);
+            this.innerQueues[topic][partition] = generateThrottlingQueueInstance(this.callbackPromise, this.callbackErrorPromise, this.logger);
         }
         this.innerQueues[topic][partition].push(message, () => {
             this.kafkaStreamConsumer.commit(message);
         });
     }
 
-    stop(){
+    stop() {
         clearInterval(this.intervalId);
     }
+
 };
 
-function generateThrottlingQueueInstance(callbackPromise, logger) {
+function generateThrottlingQueueInstance(callbackPromise, callbackErrorPromise, logger) {
     let queue = async.queue(function (message, commitOffsetCallback) {
         return callbackPromise(message).then(() => {
-            this.logger.trace(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
+            logger.trace(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
             commitOffsetCallback(message);
         }).catch((err) => {
-            this.logger.error(err, 'MessageFunction was rejected');
+            commitOffsetCallback(message);
+            logger.error('MessageFunction was rejected', err);
+            return callbackErrorPromise(message, err);
+        }).catch((err) => {
+            logger.error('ErrorMessageFunction invocation was rejected', err);
         });
     }.bind({logger}), 1);
     return queue;

@@ -5,6 +5,7 @@ let kafka = require('kafka-node'),
     _ = require('lodash'),
     should = require('should'),
     ConsumerOffsetOutOfSyncChecker = require('../src/healthCheckers/consumerOffsetOutOfSyncChecker');
+const sleep = require('util').promisify(setTimeout);
 
 let sandbox, offsetChecker,
     expectedError,
@@ -13,7 +14,7 @@ let sandbox, offsetChecker,
     offsetStub,
     closeStub, pauseStub, resumeStub, logger;
 
-describe('Testing consumer offset out of sync checker', function () {
+describe('Testing consumer offset out of sync checker', async function () {
     before(function () {
         sandbox = sinon.sandbox.create();
         logErrorStub = sandbox.stub();
@@ -135,7 +136,8 @@ describe('Testing consumer offset out of sync checker', function () {
             });
 
             offsetChecker.previousConsumerReadOffset =
-                [{ topic: 'topicA',
+                [{
+                    topic: 'topicA',
                     partition: 'partitionA',
                     offset: 50
                 }, {topic: 'topicB', partition: 'partitionB', offset: 100}];
@@ -260,6 +262,85 @@ describe('Testing consumer offset out of sync checker', function () {
                     error.should.eql(new Error('Monitor Offset: Kafka consumer topics/partitions found to be out of sync in topic: topicA and in partition:partitionA'));
                     fetchStub.called.should.eql(true);
                 });
+        });
+    });
+
+    describe('Testing registerOffsetGauge', async function () {
+        beforeEach(function () {
+            sandbox.reset();
+        });
+
+        it('Check offset diff gauge, 1 partition', async function () {
+            this.timeout(7000);
+            let kafkaConsumerGroupOffsetStub = {
+                set: sandbox.stub()
+            };
+
+            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 10}];
+            fetchStub.yields(undefined, {
+                'topicA': {
+                    'partitionA': [60]
+                }
+            });
+            offsetChecker.registerOffsetGauge(kafkaConsumerGroupOffsetStub, 1000);
+            await sleep(2000);
+            should(kafkaConsumerGroupOffsetStub.set.calledOnce).eql(true);
+            should(kafkaConsumerGroupOffsetStub.set.args[0][0]).deepEqual({
+                topic: 'topicA',
+                partition: 'partitionA'
+            });
+            should(kafkaConsumerGroupOffsetStub.set.args[0][1]).equal(50);
+            return offsetChecker;
+        });
+
+        it('Check offset diff gauge, 2 partitions', async function () {
+            this.timeout(7000);
+            let kafkaConsumerGroupOffsetStub = {
+                set: sandbox.stub()
+            };
+
+            consumerStub.topicPayloads = [{topic: 'topicA', partition: 'partitionA', offset: 65}, {
+                topic: 'topicA',
+                partition: 'partitionB',
+                offset: 555555
+            }];
+            fetchStub.yields(undefined, {
+                'topicA': {
+                    'partitionA': [70],
+                    'partitionB': [555555]
+                }
+            });
+            offsetChecker.registerOffsetGauge(kafkaConsumerGroupOffsetStub, 1000);
+            await sleep(2000);
+            should(kafkaConsumerGroupOffsetStub.set.callCount).eql(2);
+            should(kafkaConsumerGroupOffsetStub.set.args[0][0]).deepEqual({
+                topic: 'topicA',
+                partition: 'partitionA'
+            });
+            should(kafkaConsumerGroupOffsetStub.set.args[0][1]).equal(5);
+
+            should(kafkaConsumerGroupOffsetStub.set.args[1][0]).deepEqual({
+                topic: 'topicA',
+                partition: 'partitionB'
+            });
+            should(kafkaConsumerGroupOffsetStub.set.args[1][1]).equal(0);
+            return offsetChecker;
+        });
+        it('Check offset diff gauge, 2 partitions', async function () {
+            this.timeout(7000);
+            let kafkaConsumerGroupOffsetStub = {
+                set: sandbox.stub()
+            };
+
+            consumerStub.topicPayloads = [];
+            fetchStub.yields(undefined, {
+                'topicA': {
+                    'partitionA': [70]
+                }
+            });
+            offsetChecker.registerOffsetGauge(kafkaConsumerGroupOffsetStub, 1000);
+            await sleep(2000);
+            should(kafkaConsumerGroupOffsetStub.set.callCount).eql(0);
         });
     });
 });

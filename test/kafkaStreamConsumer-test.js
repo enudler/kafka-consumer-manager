@@ -15,7 +15,7 @@ let sandbox, logErrorStub, logTraceStub, logInfoStub, consumerGroupStreamStub,
     validateOffsetsAreSyncedStub, logger, kafkaThrottlingManagerStub, offsetOutOfSyncCheckerStub;
 
 describe('Testing events method', function () {
-    before(function(){
+    before(function () {
         sandbox = sinon.sandbox.create();
         logErrorStub = sandbox.stub();
         logInfoStub = sandbox.stub();
@@ -60,7 +60,7 @@ describe('Testing events method', function () {
         sandbox.reset();
     });
 
-    describe(' on connect event', function() {
+    describe(' on connect event', function () {
         it('fail to connect - connection error', function () {
             setTimeout(() => {
                 consumerEventHandlers.connect(new Error('fail to connect'));
@@ -95,7 +95,8 @@ describe('Testing events method', function () {
                 ThrottlingThreshold: 1000,
                 ThrottlingCheckIntervalMs: 10000,
                 Topics: ['topic-a', 'topic-b'],
-                MessageFunction: () => {},
+                MessageFunction: () => {
+                },
                 KafkaConnectionTimeout: 1000
             };
             try {
@@ -107,6 +108,7 @@ describe('Testing events method', function () {
                 should(offsetOutOfSyncCheckerStub.callCount).eql(0);
             }
         });
+
         it('testing right configuration was called, full configuration', async function () {
             let commitEachMsgConfiguration = {
                 KafkaUrl: 'KafkaUrl',
@@ -144,6 +146,7 @@ describe('Testing events method', function () {
             should(kafkaThrottlingManagerStub.callCount).eql(1);
             should(offsetOutOfSyncCheckerStub.callCount).eql(1);
         });
+
         it('testing right configuration was called, only mandatory configuration', async function () {
             let baseConfiguration = {
                 KafkaUrl: 'KafkaUrl',
@@ -181,11 +184,11 @@ describe('Testing events method', function () {
         });
     });
 
-    describe(' on data, error and close events', function(){
+    describe(' on data, error and close events', function () {
         beforeEach(async () => {
             setTimeout(() => {
                 consumerEventHandlers.connect();
-            }, 100);
+            }, 200);
             await consumer.init(baseConfiguration, logger);
         });
 
@@ -274,7 +277,9 @@ describe('Testing commit, pause and resume  methods', function () {
     });
 
     it('testing resume function handling - too many messages in memory', async function () {
-        setTimeout(() => { consumerEventHandlers.connect() }, 150);
+        setTimeout(() => {
+            consumerEventHandlers.connect();
+        }, 150);
         await consumer.init(baseConfiguration, logger);
         consumer.setThirsty(false);
         consumer.setDependencyHealthy(true);
@@ -284,7 +289,9 @@ describe('Testing commit, pause and resume  methods', function () {
     });
 
     it('Testing resume function handling - dependency not healthy', async function () {
-        setTimeout(() => { consumerEventHandlers.connect() }, 150);
+        setTimeout(() => {
+            consumerEventHandlers.connect();
+        }, 150);
         await consumer.init(baseConfiguration, logger);
         consumer.setThirsty(true);
         consumer.setDependencyHealthy(false);
@@ -294,7 +301,9 @@ describe('Testing commit, pause and resume  methods', function () {
     });
 
     it('testing pause & resume methods', async function () {
-        setTimeout(() => { consumerEventHandlers.connect() }, 150);
+        setTimeout(() => {
+            consumerEventHandlers.connect();
+        }, 150);
         await consumer.init(baseConfiguration, logger);
         consumerGroupStreamStub.returns(consumerStreamStub);
         consumer.pause();
@@ -307,7 +316,9 @@ describe('Testing commit, pause and resume  methods', function () {
     });
 
     it('testing commit methods - CommitEachMessage is true', async function () {
-        setTimeout(() => { consumerEventHandlers.connect() }, 150);
+        setTimeout(() => {
+            consumerEventHandlers.connect();
+        }, 150);
         await consumer.init(baseConfiguration, logger);
         let msg = {
             value: 'some_value',
@@ -341,7 +352,9 @@ describe('Testing commit, pause and resume  methods', function () {
             topic: 'my_topic'
         };
 
-        setTimeout(() => { consumerEventHandlers.connect() }, 150);
+        setTimeout(() => {
+            consumerEventHandlers.connect();
+        }, 150);
         await consumer.init(commitEachMsgConfiguration, logger);
 
         consumerGroupStreamStub.returns(consumerStreamStub);
@@ -386,7 +399,8 @@ describe('testing validateOffsetsAreSynced methods', function () {
             ThrottlingThreshold: 1000,
             ThrottlingCheckIntervalMs: 10000,
             Topics: ['topic-a', 'topic-b'],
-            MessageFunction: () => {},
+            MessageFunction: () => {
+            },
             KafkaConnectionTimeout: 1000
         };
 
@@ -442,9 +456,11 @@ describe('Testing closeConnection method', function () {
             on: function (name, func) {
                 consumerEventHandlers[name] = func;
             },
-            close: () => {},
+            close: () => {
+            },
             consumerGroup: {},
-            pause: () => {}
+            pause: () => {
+            }
         };
 
         consumerGroupStreamStub.returns(consumerStreamStub);
@@ -478,7 +494,9 @@ describe('Testing closeConnection method', function () {
     });
 
     it('Testing closeConnection method - successful closure', async function () {
-        consumerStreamStub.close = (cb) => { cb() };
+        consumerStreamStub.close = (cb) => {
+            cb();
+        };
 
         consumerGroupStreamStub.returns(consumerStreamStub);
         await consumer.closeConnection();
@@ -489,7 +507,9 @@ describe('Testing closeConnection method', function () {
         let error = {
             message: 'error message'
         };
-        consumerStreamStub.close = (cb) => { cb(_.cloneDeep(error)) };
+        consumerStreamStub.close = (cb) => {
+            cb(_.cloneDeep(error));
+        };
         consumerGroupStreamStub.returns(consumerStreamStub);
 
         return consumer.closeConnection().should.be.rejectedWith(error).then(() => {
@@ -497,5 +517,67 @@ describe('Testing closeConnection method', function () {
                 'errorMessage': 'error message'
             }]);
         });
+    });
+});
+
+describe('Testing metrics feature', function () {
+    before(() => {
+        sandbox = sinon.sandbox.create();
+        logInfoStub = sandbox.stub();
+        logErrorStub = sandbox.stub();
+        logger = {error: logErrorStub, trace: sandbox.stub(), info: logInfoStub};
+        handleIncomingMessageStub = sandbox.stub(KafkaThrottlingManager.prototype, 'handleIncomingMessage');
+        sandbox.stub(KafkaThrottlingManager.prototype, 'init');
+        sandbox.stub(kafka, 'Offset');
+        consumerGroupStreamStub = sandbox.stub(kafka, 'ConsumerGroupStream');
+    });
+
+    beforeEach(async function () {
+        consumerEventHandlers = {};
+        consumerStreamStub = {
+            on: function (name, func) {
+                consumerEventHandlers[name] = func;
+            },
+            close: () => {
+            },
+            consumerGroup: {},
+            pause: () => {
+            }
+        };
+
+        consumerGroupStreamStub.returns(consumerStreamStub);
+
+        consumer = new KafkaStreamConsumer();
+
+        promiseActionSpy = sinon.spy();
+
+        baseConfiguration = {
+            KafkaUrl: 'KafkaUrl',
+            GroupId: 'GroupId',
+            flowManagerInterval: 5555,
+            throttlingThreshold: 555,
+            Topics: ['topic-a', 'topic-b'],
+            MessageFunction: promiseActionSpy,
+            FetchMaxBytes: 9999
+        };
+
+        setTimeout(() => {
+            consumerEventHandlers.connect();
+        }, 100);
+    });
+
+    after(function () {
+        sandbox.restore();
+    });
+
+    afterEach(function () {
+        sandbox.reset();
+    });
+
+    it('Testing prometheus initializiation - ExposePrometheusMetrics=false (unspecified)', async function () {
+        await consumer.init(baseConfiguration, logger);
+        consumerGroupStreamStub.returns(consumerStreamStub);
+        should(consumer.kafkaQueryHistogram).equal(undefined);
+        should(consumer.kafkaConsumerGroupOffset).equal(undefined);
     });
 });

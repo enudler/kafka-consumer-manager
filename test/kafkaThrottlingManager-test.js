@@ -33,6 +33,11 @@ describe('Testing kafkaThrottlingManager component', () => {
                 return resolve();
             }, 100);
         });
+        let callbackErrorFunc = new Promise((resolve, reject) => {
+            setTimeout(() => {
+                return resolve();
+            }, 100);
+        });
 
         before(() => {
             logInfoStub = sandbox.stub();
@@ -49,7 +54,7 @@ describe('Testing kafkaThrottlingManager component', () => {
         it('Successful init to inner async queues', () => {
             kafkaThrottlingManager = new KafkaThrottlingManager();
             kafkaThrottlingManager.init(thresholdMessages,
-                interval, ['TopicA', 'TopicB'], callbackFunc, kafkaStreamConsumer, logger);
+                interval, ['TopicA', 'TopicB'], callbackFunc, callbackErrorFunc, kafkaStreamConsumer, logger);
             let queues = kafkaThrottlingManager.innerQueues;
             queues.should.eql({TopicA: {}, TopicB: {}});
         });
@@ -86,7 +91,7 @@ describe('Testing kafkaThrottlingManager component', () => {
         });
     });
 
-    describe('handleIncomingMessage method tests', () => {
+    describe('handleIncomingMessage without metrics method tests', () => {
         before(async () => {
             logInfoStub = sandbox.stub();
             logTraceStub = sandbox.stub();
@@ -95,7 +100,10 @@ describe('Testing kafkaThrottlingManager component', () => {
             commitFunctionStub = sandbox.stub();
             kafkaStreamConsumer.commit = commitFunctionStub;
             kafkaThrottlingManager = new KafkaThrottlingManager();
-            kafkaThrottlingManager.init(1, 5000, ['TopicA', 'TopicB'], () => Promise.resolve(), kafkaStreamConsumer, logger);
+            kafkaThrottlingManager.init(1, 5000, ['TopicA', 'TopicB'], (msg) => {
+                console.log('Invoking callback fn' + msg.msg);
+                return Promise.resolve();
+            }, () => Promise.resolve(), kafkaStreamConsumer, logger);
         });
 
         afterEach(() => {
@@ -111,21 +119,22 @@ describe('Testing kafkaThrottlingManager component', () => {
             let message = {
                 topic: 'TopicA',
                 partition: 4,
-                msg: 'some-message',
-                offset: 1005
+                msg: 'some-message1',
+                offset: 1000
             };
             kafkaThrottlingManager.handleIncomingMessage(message);
-            await sleep(100);
+            await sleep(1000);
             should(commitFunctionStub.calledOnce).eql(true);
             should(logTraceStub.args[0][0]).equal(`kafkaThrottlingManager finished handling message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
         });
+
         it('Second call to handleIncomingMessage should write to inner queue ', async () => {
             sandbox.resetHistory();
 
             let message = {
                 topic: 'TopicA',
                 partition: 4,
-                msg: 'some-message',
+                msg: 'some-message2',
                 offset: 1002
             };
             kafkaThrottlingManager.handleIncomingMessage(message);
@@ -136,16 +145,23 @@ describe('Testing kafkaThrottlingManager component', () => {
     });
 
     describe('handleIncomingMessage is failing', () => {
+        let errorCallbackStub;
         before(async () => {
             logInfoStub = sandbox.stub();
             logTraceStub = sandbox.stub();
             logErrorStub = sandbox.stub();
+            errorCallbackStub = sandbox.stub();
             logger = {error: logErrorStub, trace: logTraceStub, info: logInfoStub};
 
             commitFunctionStub = sandbox.stub();
             kafkaStreamConsumer.commit = commitFunctionStub;
             kafkaThrottlingManager = new KafkaThrottlingManager();
-            kafkaThrottlingManager.init(1, 5000, ['TopicA', 'TopicB'], () => Promise.reject(new Error('some message')), kafkaStreamConsumer, logger);
+            kafkaThrottlingManager.init(1, 5000, ['TopicA', 'TopicB'],
+                () => Promise.reject(new Error('some error message')),
+                (msg, err) => {
+                    return errorCallbackStub(msg, err);
+                },
+                kafkaStreamConsumer, logger);
         });
 
         afterEach(() => {
@@ -158,16 +174,50 @@ describe('Testing kafkaThrottlingManager component', () => {
         });
 
         it('handleIncomingMessage should rejected and write it to log ', async () => {
+            sandbox.resetHistory();
+            errorCallbackStub.yields('error function that resolves');
             let message = {
                 topic: 'TopicA',
                 partition: 4,
                 msg: 'some-message',
                 offset: 1005
             };
-            kafkaThrottlingManager.handleIncomingMessage(message);
+            let endStub = sandbox.stub();
+            let histogram = {
+                startTimer: sandbox.stub()
+            };
+            histogram.startTimer.returns(endStub);
+
+            kafkaThrottlingManager.handleIncomingMessage(message, histogram);
             await sleep(100);
-            should(commitFunctionStub.calledOnce).eql(false);
-            should(logErrorStub.args[0]).eql([new Error('some message'), 'MessageFunction was rejected']);
+            should(commitFunctionStub.calledOnce).eql(true);
+            should(errorCallbackStub.calledOnce).eql(true);
+            should(errorCallbackStub.args[0][0]).deepEqual(message);
+            should(errorCallbackStub.args[0][1]).deepEqual(new Error('some error message'));
+            should(logErrorStub.args[0]).eql(['MessageFunction was rejected', new Error('some error message')]);
+        });
+        it('handleIncomingMessage should rejected and write it to log ', async () => {
+            sandbox.resetHistory();
+            errorCallbackStub.rejects('error function that rejects');
+            let message = {
+                topic: 'TopicA',
+                partition: 4,
+                msg: 'some-message',
+                offset: 1005
+            };
+            let endStub = sandbox.stub();
+            let histogram = {
+                startTimer: sandbox.stub()
+            };
+            histogram.startTimer.returns(endStub);
+
+            kafkaThrottlingManager.handleIncomingMessage(message, histogram);
+            await sleep(100);
+            should(commitFunctionStub.calledOnce).eql(true);
+            should(errorCallbackStub.calledOnce).eql(true);
+            should(errorCallbackStub.args[0][0]).deepEqual(message);
+            should(logErrorStub.args[0]).eql(['MessageFunction was rejected', new Error('some error message')]);
+            should(logErrorStub.args[1][0]).eql('ErrorMessageFunction invocation was rejected');
         });
     });
 });

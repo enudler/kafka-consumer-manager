@@ -4,6 +4,7 @@ let KafkaStreamConsumer = require('./consumers/kafkaStreamConsumer');
 let DependencyChecker = require('./healthCheckers/dependencyChecker');
 let bunyanLogger = require('./helpers/logger');
 let _ = require('lodash');
+let prometheusUtils;
 
 module.exports = class KafkaConsumerManager {
     async init(configuration) {
@@ -15,7 +16,9 @@ module.exports = class KafkaConsumerManager {
             'Topics',
             'AutoCommit'
         ];
-
+        if (configuration.ExposePrometheusMetrics) {
+            prometheusUtils = require('./prometheus/prometheus-utils');
+        }
         if (configuration.AutoCommit === false) {
             mandatoryVars.push('ThrottlingThreshold', 'ThrottlingCheckIntervalMs');
         }
@@ -47,9 +50,18 @@ module.exports = class KafkaConsumerManager {
             _producer: new KafkaProducer(),
             _dependencyChecker: new DependencyChecker()
         });
-
         if (createProducer) await this._producer.init(configuration, logger);
+
+        if (configuration.AutoCommit === false && configuration.ExposePrometheusMetrics) {
+            this.kafkaQueryHistogram = prometheusUtils.initKafkaQueryHistogram(configuration.PrometheusHistogramBuckets);
+            configuration.MessageFunction = prometheusUtils.prometheusMetricDecorator(configuration.MessageFunction, this.kafkaQueryHistogram);
+        }
         await this._chosenConsumer.init(configuration, logger);
+
+        if (configuration.ExposePrometheusMetrics) {
+            this.kafkaConsumerGroupOffset = prometheusUtils.initKafkaConsumerGroupOffsetGauge();
+            this._chosenConsumer.getConsumerOffsetOutOfSyncChecker().registerOffsetGauge(this.kafkaConsumerGroupOffset, configuration.ConsumerGroupOffsetCheckerInterval || 5000);
+        }
         await this._dependencyChecker.init(chosenConsumer, configuration, logger);
     }
 
@@ -65,9 +77,10 @@ module.exports = class KafkaConsumerManager {
         return this._chosenConsumer.validateOffsetsAreSynced();
     }
 
-    pause(){
+    pause() {
         return this._chosenConsumer.pause();
     }
+
     resume() {
         return this._chosenConsumer.resume();
     }
@@ -80,9 +93,10 @@ module.exports = class KafkaConsumerManager {
     finishedHandlingMessage() {
         return this._chosenConsumer.decreaseMessageInMemory();
     }
-    send() {
-        if (this._createProducer){
-            return this._producer.send();
+
+    send(msg, topic) {
+        if (this._createProducer) {
+            return this._producer.send(msg, topic);
         } else {
             this._logger.warn('Not supported for CreateProducer:false');
         }

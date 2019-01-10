@@ -4,9 +4,12 @@ let kafka = require('kafka-node'),
     _ = require('lodash');
 
 module.exports = class KafkaStreamConsumer {
-    init(config, logger){
-        let {KafkaUrl, GroupId, Topics, MessageFunction, FetchMaxBytes,
-            AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000} = config;
+    init(config, logger) {
+        let {
+            KafkaUrl, GroupId, Topics, MessageFunction, ErrorMessageFunction = () => {
+            }, FetchMaxBytes,
+            AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000
+        } = config;
 
         return new Promise((resolve, reject) => {
             let options = {
@@ -31,22 +34,22 @@ module.exports = class KafkaStreamConsumer {
                 consumer: consumer
             });
 
-            this.consumer.on('data', function(message){
+            this.consumer.on('data', function (message) {
                 this.lastMessage = message;
                 this.logger.trace(`consumerGroupStream got message: topic: ${message.topic}, partition: ${message.partition}, offset: ${message.offset}`);
                 this.kafkaThrottlingManager.handleIncomingMessage(message);
             }.bind(this));
 
-            this.consumer.on('error', function(err) {
+            this.consumer.on('error', function (err) {
                 this.logger.error(err, 'Kafka Error');
                 return reject(err);
             }.bind(this));
 
-            this.consumer.on('close', function() {
+            this.consumer.on('close', function () {
                 this.logger.info('Inner ConsumerGroupStream closed');
             }.bind(this));
 
-            this.consumer.on('connect', function(err){
+            this.consumer.on('connect', function (err) {
                 if (err) {
                     this.logger.error('Error when trying to connect kafka', {errorMessage: err.message});
                     return reject(err);
@@ -57,14 +60,14 @@ module.exports = class KafkaStreamConsumer {
                 }
             }.bind(this));
 
-            setTimeout(function() {
+            setTimeout(function () {
                 return reject(new Error(`Failed to connect to kafka after ${KafkaConnectionTimeout} ms.`));
             }, KafkaConnectionTimeout);
         }).then(() => {
             // create members
             this.kafkaThrottlingManager = new KafkaThrottlingManager();
             this.kafkaThrottlingManager.init(ThrottlingThreshold, ThrottlingCheckIntervalMs,
-                Topics, MessageFunction, this, this.logger);
+                Topics, MessageFunction, ErrorMessageFunction, this, this.logger);
             this.consumerOffsetOutOfSyncChecker = new ConsumerOffsetOutOfSyncChecker();
             this.consumerOffsetOutOfSyncChecker.init(this.consumer.consumerGroup,
                 config.KafkaOffsetDiffThreshold, this.logger);
@@ -127,7 +130,7 @@ module.exports = class KafkaStreamConsumer {
         this.isThirsty = value;
     }
 
-    getLastMessage(){
+    getLastMessage() {
         return this.lastMessage;
     }
 
@@ -137,5 +140,9 @@ module.exports = class KafkaStreamConsumer {
 
     on(eventName, eventHandler) {
         return this.consumer.on(eventName, eventHandler);
+    }
+
+    getConsumerOffsetOutOfSyncChecker() {
+        return this.consumerOffsetOutOfSyncChecker;
     }
 };
