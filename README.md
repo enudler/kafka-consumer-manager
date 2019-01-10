@@ -12,7 +12,7 @@ This package is used to simplify the common use of kafka consumer:
 * Accepts a promise with the business logic each consumed message should go through
 * Accepts a promise function with the business logic of when to pause and when to resume the consuming
 * Provides an api for sending message back to the topic (usually for retries)
-
+* Prometheus integration for reporting statistics about handling message and offset diff between zookeeper and consumer group
 
 ## Install
 ```bash
