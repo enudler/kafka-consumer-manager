@@ -7,7 +7,7 @@ module.exports = class KafkaStreamConsumer {
     init(config, logger) {
         let {
             KafkaUrl, GroupId, Topics, MessageFunction, ErrorMessageFunction = () => {
-            }, FetchMaxBytes,
+            }, FetchMaxBytes, StartOffset = 'latest',
             AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000
         } = config;
 
@@ -20,7 +20,8 @@ module.exports = class KafkaStreamConsumer {
                 protocol: ['roundrobin'],
                 encoding: 'utf8',
                 fetchMaxBytes: FetchMaxBytes || 1024 * 1024,
-                autoCommitIntervalMs: AutoCommitIntervalMs || 5000
+                autoCommitIntervalMs: AutoCommitIntervalMs || 5000,
+                fromOffset: StartOffset
             };
 
             let consumer = new kafka.ConsumerGroupStream(options, Topics);

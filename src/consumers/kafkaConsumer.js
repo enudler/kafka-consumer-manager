@@ -4,7 +4,7 @@ let kafka = require('kafka-node'),
 
 module.exports = class KafkaConsumer {
     init(config, logger) {
-        let {FetchMaxBytes, Topics, MessageFunction, KafkaConnectionTimeout = 10000, KafkaUrl, GroupId} = config;
+        let {FetchMaxBytes, Topics, MessageFunction, KafkaConnectionTimeout = 10000, KafkaUrl, GroupId, StartOffset = 'latest'} = config;
         return new Promise((resolve, reject) => {
             let options = {
                 kafkaHost: KafkaUrl,
@@ -13,7 +13,8 @@ module.exports = class KafkaConsumer {
                 sessionTimeout: 10000,
                 protocol: ['roundrobin'],
                 encoding: 'utf8',
-                fetchMaxBytes: FetchMaxBytes || 1024 * 1024
+                fetchMaxBytes: FetchMaxBytes || 1024 * 1024,
+                fromOffset: StartOffset
             };
 
             Object.assign(this, {

@@ -41,7 +41,8 @@ let configuration = {
         MessageFunction: (msg) => { return handleMessage(msg) },
         MaxMessagesInMemory: 100,
         ResumeMaxMessagesRatio: 0.25,
-        CreateProducer: false
+        CreateProducer: false,
+        StartOffset: "earliest"
     };
 
 ```
@@ -75,6 +76,7 @@ await kafkaConsumerManager.init(configuration)
 * `PrometheusHistogramBuckets` &ndash; optional, array of doubles defining bucket size for kafka_request_duration_seconds_bucket in seconds in which the kafka message processing time of your service will be written.
 default values are: [0.001, 0.003, 0.005, 0.015, 0.03, 0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5] 
 * `ConsumerGroupOffsetCheckerInterval` optional, the size of the check consumer group diff offset in milliseconds. default size is 5000. 
+* `StartOffset` optional, a string specifying the offset from which the consumer will start reading messages. Default is set to 'latest' 
 
 
 ##### AutoCommit: true settings
