@@ -1,6 +1,6 @@
 {
   "name": "kafka-consumer-manager",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "description": "Kafka consumer manager handles retries, offset issues and retries",
   "main": "./index.js",
   "scripts": {
@@ -34,15 +34,15 @@
     "request-promise": "^4.2.2"
   },
   "devDependencies": {
-    "eslint": "4.13.1",
-    "eslint-config-standard": "11.0.0-beta.0",
-    "eslint-plugin-import": "2.8.0",
-    "eslint-plugin-node": "5.2.1",
-    "eslint-plugin-promise": "3.6.0",
-    "eslint-plugin-standard": "3.0.1",
+    "eslint": "^5.13.0",
+    "eslint-config-standard": "^12.0.0",
+    "eslint-plugin-import": "^2.16.0",
+    "eslint-plugin-node": "^8.0.1",
+    "eslint-plugin-promise": "^4.0.1",
+    "eslint-plugin-standard": "^4.0.0",
     "mocha": "4.0.1",
     "mochawesome": "2.3.1",
-    "rewire": "3.0.2",
+    "rewire": "^4.0.1",
     "should": "13.1.3",
     "sinon": "^6.3.4",
     "prom-client": "^11.2.1"
