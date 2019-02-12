@@ -119,7 +119,8 @@ describe('Testing events method', function () {
                 MessageFunction: promiseActionSpy,
                 FetchMaxBytes: 128,
                 CommitEachMessage: false,
-                AutoCommitIntervalMs: 7000
+                AutoCommitIntervalMs: 7000,
+                StartOffset: 'earliest'
             };
 
             setTimeout(() => {
@@ -137,7 +138,8 @@ describe('Testing events method', function () {
                 'sessionTimeout': 10000,
                 'kafkaHost': 'KafkaUrl',
                 'fetchMaxBytes': 128,
-                'autoCommitIntervalMs': 7000
+                'autoCommitIntervalMs': 7000,
+                'fromOffset': 'earliest'
             };
 
             should(consumerGroupStreamStub.args[0][1]).eql(['topic-a', 'topic-b']);
@@ -172,8 +174,8 @@ describe('Testing events method', function () {
                 'sessionTimeout': 10000,
                 'kafkaHost': 'KafkaUrl',
                 'fetchMaxBytes': 1048576,
-                'autoCommitIntervalMs': 5000
-
+                'autoCommitIntervalMs': 5000,
+                'fromOffset': 'latest'
             };
 
             should(consumerGroupStreamStub.args[0][1]).eql(['topic-a', 'topic-b']);

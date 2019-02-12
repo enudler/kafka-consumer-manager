@@ -98,7 +98,8 @@ describe('Testing kafka consumer component', function () {
                 ],
                 'sessionTimeout': 10000,
                 'kafkaHost': 'KafkaUrl',
-                'fetchMaxBytes': 1048576
+                'fetchMaxBytes': 1048576,
+                'fromOffset': 'latest'
             };
 
             should(consumerGroupStub.args[0][1]).eql(['topic-a', 'topic-b']);
