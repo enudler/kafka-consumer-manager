@@ -120,7 +120,7 @@ describe('Testing events method', function () {
                 FetchMaxBytes: 128,
                 CommitEachMessage: false,
                 AutoCommitIntervalMs: 7000,
-                startOffset: 'earliest'
+                StartOffset: 'earliest'
             };
 
             setTimeout(() => {
