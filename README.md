@@ -133,7 +133,7 @@ Get the last message that the consumer received. Don't change the original messa
 Listens on the chosen consumer events
 
 ## Running Tests
-Using mocha and istanbul 
+Using mocha and nyc 
 ```bash
 npm test
 ```
