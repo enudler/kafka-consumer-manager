@@ -4,7 +4,9 @@
   "description": "Kafka consumer manager handles retries, offset issues and retries",
   "main": "./index.js",
   "scripts": {
-    "test": "./node_modules/.bin/nyc node_modules/.bin/_mocha ./test/*"
+    "test": "./node_modules/.bin/nyc node_modules/.bin/_mocha ./test/*",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
   },
   "author": "Eli Nudler",
   "license": "MIT",
@@ -45,7 +47,8 @@
     "bunyan": "2.0.2",
     "express": "^4.16.4",
     "kafka-node": "3.0.1",
-    "lodash": "^4.17.10"
+    "lodash": "^4.17.10",
+    "snyk": "^1.189.0"
   },
   "devDependencies": {
     "eslint": "^5.16.0",
@@ -63,5 +66,6 @@
   },
   "peerDependencies": {
     "prom-client": "11.x"
-  }
+  },
+  "snyk": true
 }
