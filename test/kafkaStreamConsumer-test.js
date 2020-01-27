@@ -115,6 +115,8 @@ describe('Testing events method', function () {
                 GroupId: 'GroupId',
                 ThrottlingThreshold: 1000,
                 ThrottlingCheckIntervalMs: 10000,
+                KafkaConnectionTimeout: 20000,
+                KafkaRequestTimeout: 90000,
                 Topics: ['topic-a', 'topic-b'],
                 MessageFunction: promiseActionSpy,
                 FetchMaxBytes: 128,
@@ -131,6 +133,8 @@ describe('Testing events method', function () {
             let optionsExpected = {
                 'autoCommit': false,
                 'encoding': 'utf8',
+                'connectTimeout': 20000,
+                'requestTimeout': 90000,
                 'groupId': 'GroupId',
                 'protocol': [
                     'roundrobin'
@@ -167,6 +171,8 @@ describe('Testing events method', function () {
             let optionsExpected = {
                 'autoCommit': false,
                 'encoding': 'utf8',
+                'connectTimeout': 10000,
+                'requestTimeout': 30000,
                 'groupId': 'GroupId',
                 'protocol': [
                     'roundrobin'
