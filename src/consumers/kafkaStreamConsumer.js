@@ -8,12 +8,14 @@ module.exports = class KafkaStreamConsumer {
         let {
             KafkaUrl, GroupId, Topics, MessageFunction, ErrorMessageFunction = () => {
             }, FetchMaxBytes, StartOffset = 'latest',
-            AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000
+            AutoCommitIntervalMs, ThrottlingThreshold, ThrottlingCheckIntervalMs, KafkaConnectionTimeout = 10000, KafkaRequestTimeout = 30000
         } = config;
 
         return new Promise((resolve, reject) => {
             let options = {
                 kafkaHost: KafkaUrl,
+                connectTimeout: KafkaConnectionTimeout,
+                requestTimeout: KafkaRequestTimeout,
                 autoCommit: false,
                 groupId: GroupId,
                 sessionTimeout: 10000,

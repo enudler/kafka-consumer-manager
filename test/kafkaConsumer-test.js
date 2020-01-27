@@ -92,6 +92,8 @@ describe('Testing kafka consumer component', function () {
             let optionsExpected = {
                 'autoCommit': true,
                 'encoding': 'utf8',
+                'connectTimeout': 2000,
+                'requestTimeout': 30000,
                 'groupId': 'GroupId',
                 'protocol': [
                     'roundrobin'

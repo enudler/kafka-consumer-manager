@@ -4,10 +4,12 @@ let kafka = require('kafka-node'),
 
 module.exports = class KafkaConsumer {
     init(config, logger) {
-        let {FetchMaxBytes, Topics, MessageFunction, KafkaConnectionTimeout = 10000, KafkaUrl, GroupId, StartOffset = 'latest'} = config;
+        let { FetchMaxBytes, Topics, MessageFunction, KafkaConnectionTimeout = 10000, KafkaRequestTimeout = 30000, KafkaUrl, GroupId, StartOffset = 'latest' } = config;
         return new Promise((resolve, reject) => {
             let options = {
                 kafkaHost: KafkaUrl,
+                connectTimeout: KafkaConnectionTimeout,
+                requestTimeout: KafkaRequestTimeout,
                 autoCommit: true,
                 groupId: GroupId,
                 sessionTimeout: 10000,
