@@ -1,5 +1,3 @@
-'use-strict';
-
 let async = require('async');
 
 module.exports = class KafkaThrottlingManager {
