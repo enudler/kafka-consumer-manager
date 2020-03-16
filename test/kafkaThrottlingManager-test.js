@@ -23,79 +23,11 @@ describe('Testing kafkaThrottlingManager component', () => {
             commit: commitStub
         };
     });
-
-    // this describe represent one flow
-    describe('Testing init and the manageQueue by interval', () => {
-        let interval = 1000;
-        let thresholdMessages = 20;
-        let callbackFunc = new Promise((resolve, reject) => {
-            setTimeout(() => {
-                return resolve();
-            }, 100);
-        });
-        let callbackErrorFunc = new Promise((resolve, reject) => {
-            setTimeout(() => {
-                return resolve();
-            }, 100);
-        });
-
-        before(() => {
-            logInfoStub = sandbox.stub();
-            logTraceStub = sandbox.stub();
-            logger = {error: sandbox.stub(), trace: logTraceStub, info: logInfoStub};
-        });
-
-        after(() => {
-            kafkaThrottlingManager.stop();
-            sandbox.reset();
-            sandbox.restore();
-        });
-
-        it('Successful init to inner async queues', () => {
-            kafkaThrottlingManager = new KafkaThrottlingManager();
-            kafkaThrottlingManager.init(thresholdMessages,
-                interval, ['TopicA', 'TopicB'], callbackFunc, callbackErrorFunc, kafkaStreamConsumer, logger);
-            let queues = kafkaThrottlingManager.innerQueues;
-            queues.should.eql({TopicA: {}, TopicB: {}});
-        });
-
-        it('Wait for first interval', (done) => {
-            setTimeout(() => done(), interval);
-        });
-
-        it('Verify manageQueues was called and not paused', () => {
-            should(logTraceStub.args[0][0]).eql('managing queues..');
-            should(logTraceStub.args[1][0]).eql('Total messages in queues are: 0');
-            should(consumerSetThirstyStub.args[0][0]).eql(true);
-            should(consumerResumeStub.calledOnce).eql(true);
-            should(consumerPauseStub.callCount).eql(0);
-            sandbox.reset();
-        });
-
-        it('set number of messages to above the threshold', () => {
-            for (let i = 0; i < thresholdMessages + 5; i++) {
-                kafkaThrottlingManager.handleIncomingMessage({partition: 0, topic: 'TopicA', offset: i});
-            }
-        });
-
-        it('Wait for second interval', (done) => {
-            setTimeout(() => done(), interval);
-        });
-
-        it('Verify manageQueues was called and paused', () => {
-            should(logTraceStub.args[0][0]).eql('managing queues..');
-            should(logTraceStub.args[1][0]).eql('Total messages in queues are: 24');
-            should(consumerSetThirstyStub.args[0][0]).eql(false);
-            should(consumerResumeStub.callCount).eql(0);
-            should(consumerPauseStub.calledOnce).eql(true);
-        });
-    });
-
     describe('handleIncomingMessage without metrics method tests', () => {
         before(async () => {
             logInfoStub = sandbox.stub();
             logTraceStub = sandbox.stub();
-            logger = {error: sandbox.stub(), trace: logTraceStub, info: logInfoStub};
+            logger = { error: sandbox.stub(), trace: logTraceStub, info: logInfoStub };
 
             commitFunctionStub = sandbox.stub();
             kafkaStreamConsumer.commit = commitFunctionStub;
@@ -151,7 +83,7 @@ describe('Testing kafkaThrottlingManager component', () => {
             logTraceStub = sandbox.stub();
             logErrorStub = sandbox.stub();
             errorCallbackStub = sandbox.stub();
-            logger = {error: logErrorStub, trace: logTraceStub, info: logInfoStub};
+            logger = { error: logErrorStub, trace: logTraceStub, info: logInfoStub };
 
             commitFunctionStub = sandbox.stub();
             kafkaStreamConsumer.commit = commitFunctionStub;
@@ -218,6 +150,75 @@ describe('Testing kafkaThrottlingManager component', () => {
             should(errorCallbackStub.args[0][0]).deepEqual(message);
             should(logErrorStub.args[0]).eql(['MessageFunction was rejected', new Error('some error message')]);
             should(logErrorStub.args[1][0]).eql('ErrorMessageFunction invocation was rejected');
+        });
+    });
+
+    describe('Testing init and the manageQueue by interval', () => {
+        let interval = 1000;
+        let thresholdMessages = 20;
+
+        let callbackFunc = () => {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    return resolve();
+                }, 200);
+            });
+        };
+
+        let callbackErrorFunc = () => {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    return resolve();
+                }, 200);
+            });
+        };
+
+        before(() => {
+            logInfoStub = sandbox.stub();
+            logTraceStub = sandbox.stub();
+            logger = { error: sandbox.stub(), trace: logTraceStub, info: logInfoStub };
+        });
+
+        after(() => {
+            kafkaThrottlingManager.stop();
+            sandbox.resetHistory();
+            sandbox.restore();
+        });
+
+        it('Successful init to inner async queues', () => {
+            kafkaThrottlingManager = new KafkaThrottlingManager();
+            kafkaThrottlingManager.init(thresholdMessages,
+                interval, ['TopicA', 'TopicB'], callbackFunc, callbackErrorFunc, kafkaStreamConsumer, logger);
+            let queues = kafkaThrottlingManager.innerQueues;
+            queues.should.eql({ TopicA: {}, TopicB: {} });
+        });
+
+        it('Wait for first interval', (done) => {
+            setTimeout(() => done(), interval);
+        });
+
+        it('Verify manageQueues was called and not paused', () => {
+            should(logTraceStub.args[0][0]).eql('managing queues..');
+            should(logTraceStub.args[1][0]).eql('Total messages in queues are: 0');
+            should(consumerSetThirstyStub.args[0][0]).eql(true);
+            should(consumerResumeStub.calledOnce).eql(true);
+            should(consumerPauseStub.callCount).eql(0);
+            sandbox.reset();
+        });
+
+        it('set number of messages to above the threshold', () => {
+            for (let i = 0; i < thresholdMessages + 30; i++) {
+                kafkaThrottlingManager.handleIncomingMessage({ partition: 0, topic: 'TopicA', offset: i });
+            }
+        });
+
+        it('Wait for second interval', (done) => {
+            setTimeout(() => done(), interval);
+        });
+
+        it('Verify manageQueues was called and paused', () => {
+            should(consumerSetThirstyStub.args[consumerSetThirstyStub.args.length - 1][0]).eql(false);
+            should(consumerPauseStub.calledOnce).eql(true);
         });
     });
 });

@@ -4,13 +4,13 @@ let kafka = require('kafka-node');
 module.exports = class KafkaProducer {
     init(config, logger) {
         let {KafkaConnectionTimeout = 10000, KafkaUrl, WriteBackDelay = 0 } = config
-        let client = new kafka.KafkaClient({kafkaHost: KafkaUrl,
-            connectTimeout: KafkaConnectionTimeout});
+        let client = new kafka.KafkaClient({ kafkaHost: KafkaUrl,
+            connectTimeout: KafkaConnectionTimeout });
 
         Object.assign(this, {
             logger: logger,
-            producer : new kafka.HighLevelProducer(client, {requireAcks: 1}),
-            writeBackDelay : WriteBackDelay
+            producer: new kafka.HighLevelProducer(client, { requireAcks: 1 }),
+            writeBackDelay: WriteBackDelay
         });
 
         return new Promise((resolve, reject) => {
@@ -48,4 +48,4 @@ module.exports = class KafkaProducer {
             }.bind(this), this.writeBackDelay);
         });
     }
-}
+};

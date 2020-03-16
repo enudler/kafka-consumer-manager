@@ -46,19 +46,16 @@ module.exports = class KafkaConsumer {
                 this.logger.error(err, 'offsetOutOfRange Error');
             }.bind(this));
 
-            this.consumer.on('connect', function(err){
+            this.consumer.on('connect', function(err) {
                 if (err){
-                    this.logger.error('Error when trying to connect kafka', {errorMessage: err.message});
+                    this.logger.error('Error when trying to connect kafka', { errorMessage: err.message });
                     return reject(err);
-                } else {
+                } else if (!this.alreadyConnected && this.consumer.topicPayloads.length !== 0) {
                     this.logger.info('Kafka client is ready');
                     this.logger.info('topicPayloads', this.consumer.topicPayloads);
-                    // Consumer is ready when "connect" event is fired + consumer has topicPayload metadata
-                    if (!this.alreadyConnected && this.consumer.topicPayloads.length !== 0) {
-                        this.alreadyConnected = true;
-                        this.consumerEnabled = true;
-                        resolve();
-                    }
+                    this.alreadyConnected = true;
+                    this.consumerEnabled = true;
+                    resolve();
                 }
             }.bind(this));
 
@@ -78,7 +75,7 @@ module.exports = class KafkaConsumer {
         return new Promise((resolve, reject) => {
             this.consumer.close(function (err) {
                 if (err) {
-                    this.logger.error('Error when trying to close connection with kafka', {errorMessage: err.message});
+                    this.logger.error('Error when trying to close connection with kafka', { errorMessage: err.message });
                     return reject(err);
                 } else {
                     return resolve();
