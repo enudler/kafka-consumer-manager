@@ -1,10 +1,10 @@
 {
   "name": "kafka-consumer-manager",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "Kafka consumer manager handles retries, offset issues and retries",
   "main": "./index.js",
   "scripts": {
-    "test": "./node_modules/.bin/nyc node_modules/.bin/_mocha ./test/*"
+    "test": "./node_modules/.bin/nyc node_modules/.bin/_mocha ./test/* --exit"
   },
   "author": "Eli Nudler",
   "license": "MIT",
@@ -40,7 +40,7 @@
     "report-dir": "./.nyc_output"
   },
   "dependencies": {
-    "async": "^3.0.0",
+    "async": "^3.2.0",
     "body-parser": "^1.18.3",
     "bunyan": "2.0.2",
     "express": "^4.16.4",
