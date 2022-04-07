@@ -40,7 +40,7 @@
     "report-dir": "./.nyc_output"
   },
   "dependencies": {
-    "async": "^3.2.0",
+    "async": "^3.2.2",
     "body-parser": "^1.18.3",
     "bunyan": "2.0.2",
     "express": "^4.16.4",
