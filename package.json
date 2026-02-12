@@ -41,9 +41,9 @@
   },
   "dependencies": {
     "async": "^3.2.0",
-    "body-parser": "^1.18.3",
+    "body-parser": "^1.20.4",
     "bunyan": "2.0.2",
-    "express": "^4.16.4",
+    "express": "^4.22.0",
     "kafka-node": "^5.0.0",
     "lodash": "^4.17.15"
   },
